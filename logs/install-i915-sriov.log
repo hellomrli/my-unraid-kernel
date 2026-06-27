@@ -1,0 +1,13 @@
+make: Entering directory '/home/lain/kernel/build/linux-7.1.1'
+make[1]: 进入目录“/home/lain/kernel/i915-sriov-dkms”
+  INSTALL /home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid/updates/compat/intel_sriov_compat.ko
+  XZ      /home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid/updates/compat/intel_sriov_compat.ko.xz
+  INSTALL /home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid/updates/drivers/gpu/drm/i915/i915.ko
+  XZ      /home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid/updates/drivers/gpu/drm/i915/i915.ko.xz
+  INSTALL /home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid/updates/drivers/gpu/drm/i915/kvmgt.ko
+  XZ      /home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid/updates/drivers/gpu/drm/i915/kvmgt.ko.xz
+  INSTALL /home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid/updates/drivers/gpu/drm/xe/xe.ko
+  XZ      /home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid/updates/drivers/gpu/drm/xe/xe.ko.xz
+  DEPMOD  /home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid
+make[1]: 离开目录“/home/lain/kernel/i915-sriov-dkms”
+make: Leaving directory '/home/lain/kernel/build/linux-7.1.1'

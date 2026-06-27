@@ -1,0 +1,4 @@
+make: Entering directory '/home/lain/kernel/build/linux-7.1.1'
+make[1]: 进入目录“/home/lain/kernel/i915-sriov-dkms”
+make[1]: 离开目录“/home/lain/kernel/i915-sriov-dkms”
+make: Leaving directory '/home/lain/kernel/build/linux-7.1.1'

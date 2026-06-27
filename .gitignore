@@ -1,0 +1,15 @@
+/.cache/
+/build/
+/downloads/
+/i915-sriov-dkms/
+/ich777-unraid_kernel/
+/intel-mainline-tracking-v7.1-rc3/
+/thor2002ro-unraid_kernel/
+
+*.o
+*.ko
+*.cmd
+*.mod
+*.mod.c
+Module.symvers
+modules.order

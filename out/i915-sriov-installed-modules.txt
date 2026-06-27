@@ -1,0 +1,4 @@
+/home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid/updates/compat/intel_sriov_compat.ko.xz
+/home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid/updates/drivers/gpu/drm/i915/i915.ko.xz
+/home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid/updates/drivers/gpu/drm/i915/kvmgt.ko.xz
+/home/lain/kernel/build/modules-stage/lib/modules/7.1.1-Unraid/updates/drivers/gpu/drm/xe/xe.ko.xz
