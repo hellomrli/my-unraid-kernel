@@ -1,7 +1,8 @@
 # Unraid 7.3.1 custom Linux 7.1.1 kernel with i915 SR-IOV
 
 This workspace builds a custom Unraid boot kernel based on kernel.org Linux
-7.1.1 and packages `strongtz/i915-sriov-dkms` modules into `bzmodules`.
+7.1.1 and packages a complete Unraid 7.3.1 USB zip with
+`strongtz/i915-sriov-dkms` integrated into the initramfs module tree.
 
 The target differs from stock Unraid 7.3.1:
 
@@ -11,6 +12,8 @@ The target differs from stock Unraid 7.3.1:
   `7.0.x`, so building it against `7.1.1` is an experimental forward-port.
 - Intel `mainline-tracking/v7.1-rc3` has SR-IOV work in the `xe` driver, but
   does not contain the strongtz i915 SR-IOV implementation.
+- Unraid 7.3.1 ships OpenZFS 2.4.2 userspace, so this build also compiles
+  OpenZFS 2.4.2 kernel modules against `7.1.1-Unraid`.
 
 ## Workflow
 
@@ -21,9 +24,21 @@ scripts/all.sh
 
 The generated files are:
 
+- `out/unRAIDServer-7.3.1-Linux-7.1.1-i915-sriov-x86_64.zip`
+- `out/unRAIDServer-7.3.1-Linux-7.1.1-i915-sriov-x86_64.zip.sha256`
 - `out/bzimage`
-- `out/bzmodules`
+- `out/bzroot`
 - `out/syslinux-append-i915-sriov.txt`
+
+Use the full zip for testing. It preserves the official Unraid 7.3.1
+`bzmodules`, `bzfirmware`, `bzroot-gui`, bootloader files, and config skeleton,
+then replaces only:
+
+- `bzimage`
+- `bzroot`
+
+The new `bzroot` contains `/lib/modules/7.1.1-Unraid`, including i915 SR-IOV
+modules and OpenZFS `spl.ko.xz`/`zfs.ko.xz`.
 
 Use the syslinux append line for the i915 path:
 
@@ -39,6 +54,7 @@ scripts/01-fetch-sources.sh
 scripts/10-prepare-kernel.sh
 scripts/20-build-kernel.sh
 scripts/30-build-i915-sriov.sh
+scripts/35-build-zfs.sh
 scripts/40-package-unraid.sh
 ```
 
@@ -54,8 +70,8 @@ patches/i915-sriov-dkms-linux-7.1.1-forward-port.patch
 
 ## Notes
 
-Keep backups of the original Unraid USB `bzimage` and `bzmodules` before
-replacing them. If boot hangs or display initialization fails, boot once with:
+Keep a backup of the original Unraid USB before replacing it with the generated
+full zip contents. If boot hangs or display initialization fails, boot once with:
 
 ```text
 module_blacklist=i915,xe

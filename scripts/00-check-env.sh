@@ -9,15 +9,21 @@ required=(
   bash
   bc
   bison
+  cpio
   curl
   depmod
   flex
   gcc
   git
   make
-  mksquashfs
+  pkg-config
+  sha256sum
   tar
+  unmkinitramfs
+  unzip
   xz
+  zip
+  zstd
 )
 
 missing=0
@@ -33,7 +39,7 @@ if [ "$missing" -ne 0 ]; then
 
 Install the missing build tools before compiling.
 Ubuntu/Debian package names usually include:
-  build-essential bc bison flex libelf-dev libssl-dev dwarves squashfs-tools xz-utils git curl kmod
+  build-essential bc bison flex libelf-dev libssl-dev dwarves xz-utils git curl kmod unzip zip zstd pkg-config initramfs-tools-core
 
 EOF
   exit 1

@@ -6,6 +6,14 @@
 /intel-mainline-tracking-v7.1-rc3/
 /thor2002ro-unraid_kernel/
 
+/out/*.zip
+/out/*.zip.sha256
+/out/*.tar.xz
+/out/bzmodules
+/out/bzmodules-*
+/out/bzroot
+/out/bzroot-*
+
 *.o
 *.ko
 *.cmd
