@@ -20,6 +20,11 @@ fi
 : "${I915_SRIOV_REPO:=https://github.com/strongtz/i915-sriov-dkms.git}"
 : "${I915_SRIOV_BRANCH:=kernel-v7.0}"
 : "${I915_MAX_VFS:=7}"
+: "${ZFS_VERSION:=2.4.2}"
+: "${ZFS_TARBALL_URL:=https://github.com/openzfs/zfs/releases/download/zfs-${ZFS_VERSION}/zfs-${ZFS_VERSION}.tar.gz}"
+: "${ZFS_TARBALL_SHA256:=}"
+: "${UNRAID_ZIP_URL:=}"
+: "${UNRAID_ZIP_SHA256:=}"
 : "${FORCE_PREPARE:=false}"
 
 if [ "$JOBS" = "all" ]; then
@@ -34,10 +39,14 @@ STATE_DIR="$BUILD_DIR/state"
 
 KERNEL_TARBALL="$DOWNLOAD_DIR/linux-${TARGET_KERNEL_VERSION}.tar.xz"
 BASE_KERNEL_ARCHIVE="$DOWNLOAD_DIR/linux-${UNRAID_BASE_KERNEL}.tar.xz"
+UNRAID_ZIP="$DOWNLOAD_DIR/unRAIDServer-${UNRAID_VERSION}-x86_64.zip"
+ZFS_TARBALL="$DOWNLOAD_DIR/zfs-${ZFS_VERSION}.tar.gz"
 KERNEL_DIR="$BUILD_DIR/linux-${TARGET_KERNEL_VERSION}"
 MODULE_STAGE="$BUILD_DIR/modules-stage"
 BASE_CONFIG_PATH="$BUILD_DIR/unraid-${UNRAID_BASE_KERNEL}.config"
 I915_DIR="$ROOT_DIR/i915-sriov-dkms"
+ZFS_DIR="$BUILD_DIR/zfs-${ZFS_VERSION}"
+UNRAID_EXTRACT_DIR="$BUILD_DIR/unraid-${UNRAID_VERSION}-full"
 
 mkdir -p "$DOWNLOAD_DIR" "$BUILD_DIR" "$LOG_DIR" "$OUT_DIR" "$STATE_DIR"
 
@@ -66,6 +75,18 @@ download_file() {
   log "Downloading $url"
   curl -L --fail --retry 3 --retry-delay 2 -o "$out.tmp" "$url"
   mv "$out.tmp" "$out"
+}
+
+verify_sha256() {
+  local file="$1"
+  local expected="$2"
+
+  [ -n "$expected" ] || return 0
+  [ -f "$file" ] || die "Cannot verify missing file: $file"
+
+  local actual
+  actual="$(sha256sum "$file" | awk '{print $1}')"
+  [ "$actual" = "$expected" ] || die "SHA256 mismatch for $file: expected $expected, got $actual"
 }
 
 kernel_release() {
