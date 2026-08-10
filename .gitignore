@@ -13,6 +13,15 @@
 /out/bzmodules-*
 /out/bzroot
 /out/bzroot-*
+/out/bzimage
+/out/bzimage-*
+/out/*.sha256
+/out/*.txz
+/out/*.txz.md5
+/out/sha256sums-*.txt
+/out/*-installed-modules.txt
+/out/verification-*.txt
+/out/depmod-*.txt
 
 *.o
 *.ko

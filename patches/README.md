@@ -1,13 +1,15 @@
-# Optional patches
+# Patches
 
-`i915-sriov-dkms-linux-7.1.1-forward-port.patch` is applied automatically by
-`scripts/30-build-i915-sriov.sh`. It forward-ports `strongtz/i915-sriov-dkms`
-`kernel-v7.0` to the Linux `7.1.1-Unraid` build used by this workspace.
+`strongtz-2026.08.08-unraid-6x-slab.patch` is applied to the pinned strongtz
+2026.08.08 source before compiling it for `6.18.38-Unraid` or
+`6.18.43-Unraid`.
 
-Put kernel patches here and apply them after `scripts/10-prepare-kernel.sh`
-and before `scripts/20-build-kernel.sh`.
+The Unraid 6.18 tree backports the two-argument `kmalloc_obj` family from a
+newer kernel API. The strongtz source supplies optional-GFP compatibility
+forms, but the backported macros remain defined and cause preprocessing
+errors. The patch undefines those helpers only on kernels below 7.0 before the
+driver compatibility definitions are evaluated. Its 7.0/7.1 path is
+unchanged.
 
-Examples from `thor2002ro/unraid_kernel` that may be relevant for some Unraid
-systems are NVMe quirks, UAS quirks, RMRR relax patches, and EDID fixes. They
-are not applied by default because they change behavior outside the i915 SR-IOV
-driver request.
+The older `i915-sriov-dkms-linux-7.1.1-forward-port.patch` belongs to the main
+branch's Linux 7.1.1 experiment and is not used by this branch.

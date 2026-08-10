@@ -7,24 +7,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 required=(
   bash
-  bc
-  bison
-  cpio
   curl
   depmod
-  flex
-  gcc
   git
   make
-  pkg-config
+  readelf
   sha256sum
+  strings
   tar
-  unmkinitramfs
-  unzip
   xz
-  zip
-  zstd
 )
+
+if [ "$PLUGIN_ONLY" != "true" ]; then
+  required+=(bc bison cpio flex unmkinitramfs unzip zip zstd)
+fi
 
 missing=0
 for cmd in "${required[@]}"; do
@@ -34,17 +30,41 @@ for cmd in "${required[@]}"; do
   fi
 done
 
+for compiler in "$CC" "$HOSTCC" "$CXX" "$HOSTCXX"; do
+  if ! command -v "$compiler" >/dev/null 2>&1; then
+    printf 'missing compiler: %s\n' "$compiler" >&2
+    missing=1
+  fi
+done
+
+if [ -n "${HOSTCFLAGS:-}" ]; then
+  export HOSTCFLAGS
+fi
+if [ -n "${HOSTLDFLAGS:-}" ]; then
+  export HOSTLDFLAGS
+fi
+
 if [ "$missing" -ne 0 ]; then
   cat >&2 <<'EOF'
 
-Install the missing build tools before compiling.
-Ubuntu/Debian package names usually include:
-  build-essential bc bison flex libelf-dev libssl-dev dwarves xz-utils git curl kmod unzip zip zstd pkg-config initramfs-tools-core
+Install the missing build tools before compiling. Ubuntu/Debian package names
+usually include: build-essential bc bison flex libelf-dev libssl-dev xz-utils git curl
+kmod unzip zip zstd initramfs-tools-core autoconf automake libtool uuid-dev
+libblkid-dev libudev-dev libaio-dev libattr1-dev libzstd-dev libcurl4-openssl-dev
 
 EOF
   exit 1
 fi
 
 log "Environment looks usable"
-log "gcc: $(gcc -dumpfullversion -dumpversion)"
+log "cc: $CC ($("$CC" -dumpfullversion -dumpversion))"
+log "hostcc: $HOSTCC ($("$HOSTCC" -dumpfullversion -dumpversion))"
+log "hostcxx: $HOSTCXX ($("$HOSTCXX" -dumpfullversion -dumpversion))"
+if [ "$PLUGIN_ONLY" != "true" ] && ! printf '#include <gelf.h>\n' | "$HOSTCC" $HOSTCFLAGS -x c -E - >/dev/null 2>&1; then
+  die "gelf.h is unavailable; install libelf-dev or set HOSTCFLAGS"
+fi
+if [ -n "$EXPECTED_CC_VERSION" ]; then
+  actual_cc_version="$("$CC" -dumpfullversion -dumpversion)"
+  [ "$actual_cc_version" = "$EXPECTED_CC_VERSION" ] || die "Expected GCC $EXPECTED_CC_VERSION, got $actual_cc_version"
+fi
 log "jobs: $JOBS"
