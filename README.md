@@ -15,9 +15,12 @@ allocation helpers.
 ## Build
 
 ```bash
-cp config/build.env.example config/build.env
 scripts/all.sh
 ```
+
+The tracked `config/build.env` pins the local GCC 15.3.0 toolchain used for
+the release. Use `config/build.env.example` as a template only when moving the
+build to another host, and set its compiler paths accordingly.
 
 The main outputs are:
 
