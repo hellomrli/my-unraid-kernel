@@ -3,29 +3,43 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-if [ -f "$ROOT_DIR/config/build.env" ]; then
+BUILD_ENV_FILE="${BUILD_ENV_FILE:-$ROOT_DIR/config/build.env}"
+if [ -f "$BUILD_ENV_FILE" ]; then
   # shellcheck disable=SC1091
-  . "$ROOT_DIR/config/build.env"
+  . "$BUILD_ENV_FILE"
 fi
 
-: "${UNRAID_VERSION:=7.3.1}"
-: "${UNRAID_BASE_KERNEL:=6.18.33-Unraid}"
-: "${TARGET_KERNEL_VERSION:=7.1.1}"
-: "${LOCALVERSION:=-Unraid}"
+: "${UNRAID_VERSION:=7.3.2}"
+: "${TARGET_KERNEL_VERSION:=6.18.43}"
+: "${KERNEL_RELEASE:=${TARGET_KERNEL_VERSION}-Unraid}"
 : "${JOBS:=all}"
-: "${KERNEL_TARBALL_URL:=https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-${TARGET_KERNEL_VERSION}.tar.xz}"
-: "${BASE_KERNEL_ARCHIVE_URL:=https://github.com/ich777/unraid_kernel/releases/download/${UNRAID_BASE_KERNEL}/linux-${UNRAID_BASE_KERNEL}.tar.xz}"
-: "${THOR_REPO_DIR:=thor2002ro-unraid_kernel}"
-: "${THOR_CONFIG_FILE:=unraid_7.1.4_conf_regen-7.1-vendor-gcc}"
-: "${I915_SRIOV_REPO:=https://github.com/strongtz/i915-sriov-dkms.git}"
-: "${I915_SRIOV_BRANCH:=kernel-v7.0}"
-: "${I915_MAX_VFS:=7}"
-: "${ZFS_VERSION:=2.4.2}"
-: "${ZFS_TARBALL_URL:=https://github.com/openzfs/zfs/releases/download/zfs-${ZFS_VERSION}/zfs-${ZFS_VERSION}.tar.gz}"
-: "${ZFS_TARBALL_SHA256:=}"
+: "${KERNEL_ARCHIVE_URL:=https://github.com/ich777/unraid_kernel/releases/download/${KERNEL_RELEASE}/linux-${KERNEL_RELEASE}.tar.xz}"
+: "${KERNEL_ARCHIVE_SHA256:=}"
 : "${UNRAID_ZIP_URL:=}"
 : "${UNRAID_ZIP_SHA256:=}"
+: "${I915_SRIOV_REPO:=https://github.com/strongtz/i915-sriov-dkms.git}"
+: "${I915_SRIOV_REF:=2026.08.08}"
+: "${I915_SRIOV_COMMIT:=}"
+: "${I915_MAX_VFS:=7}"
+: "${ZFS_VERSION:=2.4.3}"
+: "${ZFS_TARBALL_URL:=https://github.com/openzfs/zfs/releases/download/zfs-${ZFS_VERSION}/zfs-${ZFS_VERSION}.tar.gz}"
+: "${ZFS_TARBALL_SHA256:=}"
 : "${FORCE_PREPARE:=false}"
+: "${PLUGIN_ONLY:=false}"
+: "${REBUILD_KERNEL:=true}"
+: "${CLEAN_KERNEL_BUILD:=true}"
+: "${CLEAN_ZFS_BUILD:=true}"
+: "${EXPECTED_CC_VERSION:=}"
+: "${CC:=gcc}"
+: "${HOSTCC:=$CC}"
+: "${CXX:=g++}"
+: "${HOSTCXX:=$CXX}"
+: "${HOSTCFLAGS:=}"
+: "${HOSTLDFLAGS:=}"
+
+# Export compiler selections so both kbuild and OpenZFS configure use the same
+# toolchain. Callers can override these without changing the tracked config.
+export CC HOSTCC CXX HOSTCXX HOSTCFLAGS HOSTLDFLAGS
 
 if [ "$JOBS" = "all" ]; then
   JOBS="$(nproc --all)"
@@ -37,14 +51,12 @@ LOG_DIR="$ROOT_DIR/logs"
 OUT_DIR="$ROOT_DIR/out"
 STATE_DIR="$BUILD_DIR/state"
 
-KERNEL_TARBALL="$DOWNLOAD_DIR/linux-${TARGET_KERNEL_VERSION}.tar.xz"
-BASE_KERNEL_ARCHIVE="$DOWNLOAD_DIR/linux-${UNRAID_BASE_KERNEL}.tar.xz"
+KERNEL_ARCHIVE="$DOWNLOAD_DIR/linux-${KERNEL_RELEASE}.tar.xz"
 UNRAID_ZIP="$DOWNLOAD_DIR/unRAIDServer-${UNRAID_VERSION}-x86_64.zip"
 ZFS_TARBALL="$DOWNLOAD_DIR/zfs-${ZFS_VERSION}.tar.gz"
 KERNEL_DIR="$BUILD_DIR/linux-${TARGET_KERNEL_VERSION}"
 MODULE_STAGE="$BUILD_DIR/modules-stage"
-BASE_CONFIG_PATH="$BUILD_DIR/unraid-${UNRAID_BASE_KERNEL}.config"
-I915_DIR="$ROOT_DIR/i915-sriov-dkms"
+I915_DIR="$BUILD_DIR/i915-sriov-dkms-${I915_SRIOV_REF}"
 ZFS_DIR="$BUILD_DIR/zfs-${ZFS_VERSION}"
 UNRAID_EXTRACT_DIR="$BUILD_DIR/unraid-${UNRAID_VERSION}-full"
 
@@ -61,6 +73,17 @@ die() {
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
+}
+
+kmake() {
+  make -C "$KERNEL_DIR" \
+    CC="$CC" \
+    HOSTCC="$HOSTCC" \
+    CXX="$CXX" \
+    HOSTCXX="$HOSTCXX" \
+    HOSTCFLAGS="$HOSTCFLAGS" \
+    HOSTLDFLAGS="$HOSTLDFLAGS" \
+    "$@"
 }
 
 download_file() {
@@ -90,5 +113,11 @@ verify_sha256() {
 }
 
 kernel_release() {
-  make -s -C "$KERNEL_DIR" kernelrelease
+  kmake -s kernelrelease
+}
+
+check_kernel_release() {
+  local actual
+  actual="$(kernel_release)"
+  [ "$actual" = "$KERNEL_RELEASE" ] || die "Kernel release mismatch: expected $KERNEL_RELEASE, got $actual"
 }
