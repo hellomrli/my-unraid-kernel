@@ -89,8 +89,16 @@ jobs:
             -e "s|^EXPECTED_CC_VERSION=.*|EXPECTED_CC_VERSION=$compiler_version|" \
             -e 's|^JOBS=.*|JOBS=all|' \
             "$build_env"
+          kernel_release="$(sed -n 's/^KERNEL_RELEASE=//p' "$build_env")"
+          target_kernel_version="$(sed -n 's/^TARGET_KERNEL_VERSION=//p' "$build_env")"
+          unraid_version="$(sed -n 's/^UNRAID_VERSION=//p' "$build_env")"
+          i915_sriov_ref="$(sed -n 's/^I915_SRIOV_REF=//p' "$build_env")"
           printf 'BUILD_ENV_FILE=%s\n' "$build_env" >> "$GITHUB_ENV"
           printf 'EXPECTED_CC_VERSION=%s\n' "$compiler_version" >> "$GITHUB_ENV"
+          printf 'KERNEL_RELEASE=%s\n' "$kernel_release" >> "$GITHUB_ENV"
+          printf 'TARGET_KERNEL_VERSION=%s\n' "$target_kernel_version" >> "$GITHUB_ENV"
+          printf 'UNRAID_VERSION=%s\n' "$unraid_version" >> "$GITHUB_ENV"
+          printf 'I915_SRIOV_REF=%s\n' "$i915_sriov_ref" >> "$GITHUB_ENV"
           printf 'Resolved build configuration:\n'
           sed -n '1,42p' "$build_env"
 
@@ -101,12 +109,52 @@ jobs:
           scripts/all.sh 2>&1 | tee "$RUNNER_TEMP/unraid-build.log"
           (
             cd out
-            for checksum in *.sha256 sha256sums-*.txt; do
+            for checksum in *.sha256; do
               [ -f "$checksum" ] || continue
               sha256sum -c "$checksum"
             done
+            checksum_manifest="sha256sums-$KERNEL_RELEASE.txt"
+            if [ -f "$checksum_manifest" ]; then
+              sha256sum -c "$checksum_manifest"
+            fi
           )
-          find out -maxdepth 1 -type f -size +0c -printf '%f\t%s bytes\n' | sort > out/cloud-build-manifest.txt
+
+          package_version="${I915_SRIOV_REF//./}"
+          plugin_base="i915-sriov-${package_version}-${KERNEL_RELEASE}-1.txz"
+          cloud_dir=cloud-artifacts
+          mkdir -p "$cloud_dir/logs"
+          artifacts=(
+            "out/$plugin_base"
+            "out/$plugin_base.sha256"
+            "out/$plugin_base.md5"
+            out/i915-sriov-installed-modules.txt
+            "out/verification-i915-$KERNEL_RELEASE.txt"
+            "config/generated-linux-$KERNEL_RELEASE.config"
+          )
+
+          if [ "$BUILD_TARGET" = full-6.18.43 ]; then
+            zip_base="unRAIDServer-${UNRAID_VERSION}-Linux-${TARGET_KERNEL_VERSION}-i915-sriov-${I915_SRIOV_REF}-x86_64.zip"
+            artifacts+=(
+              "out/$zip_base"
+              "out/$zip_base.sha256"
+              "out/bzimage-$KERNEL_RELEASE"
+              "out/sha256sums-$KERNEL_RELEASE.txt"
+              out/syslinux-append-i915-sriov.txt
+              "out/verification-$KERNEL_RELEASE.txt"
+              out/zfs-installed-modules.txt
+            )
+          fi
+
+          for artifact in "${artifacts[@]}"; do
+            [ -s "$artifact" ] || {
+              printf 'Expected build output is missing: %s\n' "$artifact" >&2
+              exit 1
+            }
+            cp "$artifact" "$cloud_dir/"
+          done
+          cp "$RUNNER_TEMP/unraid-build.log" "$cloud_dir/logs/"
+          find "$cloud_dir" -maxdepth 1 -type f -size +0c -printf '%f\t%s bytes\n' \
+            | sort > "$cloud_dir/cloud-build-manifest.txt"
           df -h .
 
       - name: Upload build artifact
@@ -118,19 +166,9 @@ jobs:
           compression-level: 0
           retention-days: 14
           path: |
-            out/*.zip
-            out/*.zip.sha256
-            out/*.txz
-            out/*.txz.sha256
-            out/*.txz.md5
-            out/*installed-modules.txt
-            out/verification-*.txt
-            out/sha256sums-*.txt
-            out/syslinux-append-*.txt
-            out/bzimage-*
-            out/cloud-build-manifest.txt
+            cloud-artifacts/
             logs/*.log
-            config/generated-linux-*.config
+            ${{ runner.temp }}/unraid-build.log
 
       - name: Attach outputs to an existing release
         if: ${{ success() && inputs.publish_release }}
@@ -144,12 +182,8 @@ jobs:
             exit 2
           }
           mapfile -t assets < <(
-            find out -maxdepth 1 -type f -size +0c \
-              \( -name '*.zip' -o -name '*.zip.sha256' -o -name '*.txz' \
-              -o -name '*.txz.sha256' -o -name '*.txz.md5' \
-              -o -name '*installed-modules.txt' -o -name 'verification-*.txt' \
-              -o -name 'sha256sums-*.txt' -o -name 'syslinux-append-*.txt' \
-              -o -name 'bzimage-*' \) -print | sort
+            find cloud-artifacts -maxdepth 1 -type f -size +0c \
+              ! -name 'cloud-build-manifest.txt' -print | sort
           )
           [ "${#assets[@]}" -gt 0 ] || {
             printf 'No release assets were produced\n' >&2
