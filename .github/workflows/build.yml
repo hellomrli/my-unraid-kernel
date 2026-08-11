@@ -44,7 +44,7 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Install build dependencies
         shell: bash
@@ -106,7 +106,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          scripts/all.sh 2>&1 | tee "$RUNNER_TEMP/unraid-build.log"
+          cloud_dir=cloud-artifacts
+          mkdir -p "$cloud_dir/logs"
+          scripts/all.sh 2>&1 | tee "$cloud_dir/logs/unraid-build.log"
           (
             cd out
             for checksum in *.sha256; do
@@ -121,8 +123,6 @@ jobs:
 
           package_version="${I915_SRIOV_REF//./}"
           plugin_base="i915-sriov-${package_version}-${KERNEL_RELEASE}-1.txz"
-          cloud_dir=cloud-artifacts
-          mkdir -p "$cloud_dir/logs"
           artifacts=(
             "out/$plugin_base"
             "out/$plugin_base.sha256"
@@ -152,14 +152,13 @@ jobs:
             }
             cp "$artifact" "$cloud_dir/"
           done
-          cp "$RUNNER_TEMP/unraid-build.log" "$cloud_dir/logs/"
           find "$cloud_dir" -maxdepth 1 -type f -size +0c -printf '%f\t%s bytes\n' \
             | sort > "$cloud_dir/cloud-build-manifest.txt"
           df -h .
 
       - name: Upload build artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: unraid-${{ inputs.target }}-${{ github.sha }}
           if-no-files-found: warn
@@ -167,8 +166,6 @@ jobs:
           retention-days: 14
           path: |
             cloud-artifacts/
-            logs/*.log
-            ${{ runner.temp }}/unraid-build.log
 
       - name: Attach outputs to an existing release
         if: ${{ success() && inputs.publish_release }}
