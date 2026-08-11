@@ -16,7 +16,7 @@ need_cmd tar
 need_cmd xz
 
 PACKAGE_VERSION="${I915_SRIOV_REF//./}"
-PACKAGE_NAME="i915-sriov-${PACKAGE_VERSION}-${KERNEL_RELEASE}-1"
+PACKAGE_NAME="i915-sriov-${PACKAGE_VERSION}-${KERNEL_RELEASE}-${PACKAGE_BUILD}"
 PACKAGE_OUT="$OUT_DIR/${PACKAGE_NAME}.txz"
 VERIFY_DIR="$BUILD_DIR/verify-${PACKAGE_NAME}"
 DEPMOD_REPORT="$OUT_DIR/depmod-plugin-${KERNEL_RELEASE}.txt"
@@ -62,8 +62,16 @@ verify_module() {
   fi
 }
 
+verify_xz_crc32() {
+  local path="$1"
+  local check
+  check="$(xz --robot --list "$path" | awk -F '\t' '$1 == "totals" {print $7}')"
+  [ "$check" = "CRC32" ] || die "Kernel module must use XZ CRC32: $path (got ${check:-unknown})"
+}
+
 verify_module "$COMPAT_MODULE"
 verify_module "$I915_MODULE"
+verify_xz_crc32 "$I915_COMPRESSED"
 
 actual_md5="$(md5sum "$PACKAGE_OUT" | awk '{print $1}')"
 expected_md5="$(awk 'NR == 1 {print $1}' "$PACKAGE_OUT.md5")"

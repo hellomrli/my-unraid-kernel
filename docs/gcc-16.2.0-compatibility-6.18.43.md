@@ -1,7 +1,8 @@
 # GCC 16.2.0 Compatibility Test
 
-This is a separate compatibility test. The release ZIP remains the GCC 15.3.0
-build documented in `docs/release-v6.18.43-unraid-i915-sriov-2026.08.08.md`.
+This is the GCC 16.2.0 compatibility release for the 6.18.43-Unraid ABI. The
+release notes and package details are in
+`docs/release-v6.18.43-unraid-i915-sriov-2026.08.12-gcc16.md`.
 
 ## Toolchain
 
@@ -13,7 +14,7 @@ build documented in `docs/release-v6.18.43-unraid-i915-sriov-2026.08.08.md`.
 ## Results
 
 The complete `6.18.43-Unraid` kernel configuration built successfully with
-GCC 16.2.0, including `bzImage`, all 1,194 in-tree modules and MODPOST.
+GCC 16.2.0, including `bzImage`, all 1,197 staged in-tree modules and MODPOST.
 
 The following external modules also built successfully against that ABI:
 
@@ -29,6 +30,6 @@ verification output is in `out/depmod-gcc-16.2.0-6.18.43.txt`; build logs are
 `logs/build-kernel-gcc-16.2.0.log`, `logs/build-i915-gcc-16.2.0.log` and
 `logs/build-zfs-gcc-16.2.0.log`.
 
-This proves compilation and static ABI compatibility only. It is not a
-replacement for the GCC 15.3.0 release package and has not been boot-tested on
-the target Unraid host.
+This proves compilation and static ABI compatibility only. The package has not
+been boot-tested on the target Unraid host; reboot only after keeping a
+recovery boot entry and backing up the original USB files.

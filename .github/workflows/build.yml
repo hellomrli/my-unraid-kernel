@@ -93,12 +93,15 @@ jobs:
           target_kernel_version="$(sed -n 's/^TARGET_KERNEL_VERSION=//p' "$build_env")"
           unraid_version="$(sed -n 's/^UNRAID_VERSION=//p' "$build_env")"
           i915_sriov_ref="$(sed -n 's/^I915_SRIOV_REF=//p' "$build_env")"
+          package_build="$(sed -n 's/^PACKAGE_BUILD=//p' "$build_env")"
+          package_build="${package_build:-1}"
           printf 'BUILD_ENV_FILE=%s\n' "$build_env" >> "$GITHUB_ENV"
           printf 'EXPECTED_CC_VERSION=%s\n' "$compiler_version" >> "$GITHUB_ENV"
           printf 'KERNEL_RELEASE=%s\n' "$kernel_release" >> "$GITHUB_ENV"
           printf 'TARGET_KERNEL_VERSION=%s\n' "$target_kernel_version" >> "$GITHUB_ENV"
           printf 'UNRAID_VERSION=%s\n' "$unraid_version" >> "$GITHUB_ENV"
           printf 'I915_SRIOV_REF=%s\n' "$i915_sriov_ref" >> "$GITHUB_ENV"
+          printf 'PACKAGE_BUILD=%s\n' "$package_build" >> "$GITHUB_ENV"
           printf 'Resolved build configuration:\n'
           sed -n '1,42p' "$build_env"
 
@@ -122,7 +125,7 @@ jobs:
           )
 
           package_version="${I915_SRIOV_REF//./}"
-          plugin_base="i915-sriov-${package_version}-${KERNEL_RELEASE}-1.txz"
+          plugin_base="i915-sriov-${package_version}-${KERNEL_RELEASE}-${PACKAGE_BUILD}.txz"
           artifacts=(
             "out/$plugin_base"
             "out/$plugin_base.sha256"
