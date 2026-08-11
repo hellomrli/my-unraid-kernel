@@ -17,8 +17,8 @@ assets include:
 
 - `unRAIDServer-7.3.2-Linux-6.18.43-i915-sriov-2026.08.08-x86_64.zip`: a
   complete Unraid USB package, including the rebuilt `bzimage` and `bzroot`.
-- `i915-sriov-20260808-6.18.43-Unraid-1.txz`: the plugin-compatible driver
-  package for an existing 6.18.43-Unraid installation.
+- `i915-sriov-20260808-6.18.43-Unraid-2.txz`: the GCC 16.2.0 plugin-compatible
+  driver package for an existing 6.18.43-Unraid installation.
 - SHA-256 and MD5 checksum files, plus the static verification report.
 
 Use the complete ZIP when replacing the Unraid kernel. It keeps the official
@@ -51,6 +51,20 @@ BUILD_ENV_FILE=config/build-6.18.38-plugin.env scripts/all.sh
 That mode uses the matching prebuilt kernel ABI and produces
 `out/i915-sriov-20260808-6.18.38-Unraid-1.txz`.
 
+For the GCC 16.2.0 compatibility build used by the 2026-08-12 test release:
+
+```bash
+tool_root=/home/lain/codex/i915/.toolchains/host-tools
+PATH="$tool_root/usr/bin:$PATH" \
+BISON_PKGDATADIR="$tool_root/usr/share/bison" \
+HOSTCFLAGS="-I$tool_root/usr/include" \
+HOSTLDFLAGS="-L/usr/lib/x86_64-linux-gnu -L$tool_root/usr/lib/x86_64-linux-gnu" \
+BUILD_ENV_FILE=config/build-gcc-16.2.0.env scripts/all.sh
+```
+
+This produces the full 6.18.43 package and the revision-2 driver package
+`out/i915-sriov-20260808-6.18.43-Unraid-2.txz`.
+
 ## GitHub Actions
 
 Builds can run on GitHub-hosted runners from the **Actions** tab using the
@@ -74,8 +88,8 @@ For the plugin package, verify the checksum and install it while i915 is not
 loaded:
 
 ```sh
-sha256sum -c i915-sriov-20260808-6.18.43-Unraid-1.txz.sha256
-upgradepkg --install-new i915-sriov-20260808-6.18.43-Unraid-1.txz
+sha256sum -c i915-sriov-20260808-6.18.43-Unraid-2.txz.sha256
+upgradepkg --install-new i915-sriov-20260808-6.18.43-Unraid-2.txz
 depmod -a 6.18.43-Unraid
 ```
 

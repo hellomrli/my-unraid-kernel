@@ -19,7 +19,7 @@ PACKAGE_NAME="unRAIDServer-${UNRAID_VERSION}-Linux-${TARGET_KERNEL_VERSION}-i915
 ZIP_OUT="$OUT_DIR/${PACKAGE_NAME}.zip"
 VERIFY_DIR="$BUILD_DIR/verify-$KERNEL_RELEASE"
 I915_PACKAGE_VERSION="${I915_SRIOV_REF//./}"
-I915_PACKAGE="i915-sriov-${I915_PACKAGE_VERSION}-${KERNEL_RELEASE}-1.txz"
+I915_PACKAGE="i915-sriov-${I915_PACKAGE_VERSION}-${KERNEL_RELEASE}-${PACKAGE_BUILD}.txz"
 I915_PACKAGE_DIR="$BUILD_DIR/verify-$I915_PACKAGE_VERSION-$KERNEL_RELEASE"
 
 [ -s "$ZIP_OUT" ] || die "Missing output zip: $ZIP_OUT"
@@ -51,6 +51,13 @@ verify_module() {
   if [ -n "$expected_version" ]; then
     [ "$(modinfo -F version "$path")" = "$expected_version" ] || die "Wrong version for $path"
   fi
+}
+
+verify_xz_crc32() {
+  local path="$1"
+  local check
+  check="$(xz --robot --list "$path" | awk -F '\t' '$1 == "totals" {print $7}')"
+  [ "$check" = "CRC32" ] || die "Kernel module must use XZ CRC32: $path (got ${check:-unknown})"
 }
 
 module_compiler() {
@@ -93,6 +100,17 @@ for module in \
   "$MODULE_DIR/extra/spl.ko.xz" \
   "$MODULE_DIR/extra/zfs.ko.xz"
 do
+  verify_xz_crc32 "$module"
+done
+
+for module in \
+  "$COMPAT_MODULE" \
+  "$I915_MODULE" \
+  "$KVMGT_MODULE" \
+  "$XE_MODULE" \
+  "$MODULE_DIR/extra/spl.ko.xz" \
+  "$MODULE_DIR/extra/zfs.ko.xz"
+do
   verify_module_compiler "$module"
 done
 
@@ -116,6 +134,7 @@ verify_module "$I915_PACKAGE_DIR/lib/modules/$KERNEL_RELEASE/updates/compat/inte
 verify_module "$I915_PACKAGE_DIR/lib/modules/$KERNEL_RELEASE/kernel/drivers/gpu/drm/i915/i915.ko.xz" "$I915_SRIOV_REF-sriov"
 verify_module_compiler "$I915_PACKAGE_DIR/lib/modules/$KERNEL_RELEASE/updates/compat/intel_sriov_compat.ko"
 verify_module_compiler "$I915_PACKAGE_DIR/lib/modules/$KERNEL_RELEASE/kernel/drivers/gpu/drm/i915/i915.ko.xz"
+verify_xz_crc32 "$I915_PACKAGE_DIR/lib/modules/$KERNEL_RELEASE/kernel/drivers/gpu/drm/i915/i915.ko.xz"
 
 DEPMOD_REPORT="$OUT_DIR/depmod-$KERNEL_RELEASE.txt"
 depmod -e -b "$VERIFY_DIR" -F "$KERNEL_DIR/System.map" "$KERNEL_RELEASE" > "$DEPMOD_REPORT" 2>&1

@@ -57,7 +57,7 @@ EXTRA_DIR="$MODULE_STAGE/lib/modules/$KERNEL_RELEASE/extra"
 install -d "$EXTRA_DIR"
 install -m 0644 "$ZFS_DIR/module/spl.ko" "$EXTRA_DIR/spl.ko"
 install -m 0644 "$ZFS_DIR/module/zfs.ko" "$EXTRA_DIR/zfs.ko"
-xz -T0 -9 -f "$EXTRA_DIR/spl.ko" "$EXTRA_DIR/zfs.ko"
+xz -T0 -9 --check=crc32 -f "$EXTRA_DIR/spl.ko" "$EXTRA_DIR/zfs.ko"
 
 depmod -b "$MODULE_STAGE" -F "$KERNEL_DIR/System.map" "$KERNEL_RELEASE"
 find "$EXTRA_DIR" -maxdepth 1 -type f -printf '%P\n' | sort > "$OUT_DIR/zfs-installed-modules.txt"

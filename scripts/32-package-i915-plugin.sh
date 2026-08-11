@@ -14,7 +14,7 @@ need_cmd xz
 [ -s "$I915_DIR/drivers/gpu/drm/i915/i915.ko" ] || die "Missing built i915 module"
 
 PACKAGE_VERSION="${I915_SRIOV_REF//./}"
-PACKAGE_NAME="i915-sriov-${PACKAGE_VERSION}-${KERNEL_RELEASE}-1"
+PACKAGE_NAME="i915-sriov-${PACKAGE_VERSION}-${KERNEL_RELEASE}-${PACKAGE_BUILD}"
 PACKAGE_ROOT="$BUILD_DIR/${PACKAGE_NAME}-package"
 PACKAGE_OUT="$OUT_DIR/${PACKAGE_NAME}.txz"
 COMPAT_PATH="lib/modules/$KERNEL_RELEASE/updates/compat"
@@ -34,7 +34,7 @@ install -d \
 install -m 0644 \
   "$I915_DIR/compat/intel_sriov_compat.ko" \
   "$PACKAGE_ROOT/$COMPAT_PATH/intel_sriov_compat.ko"
-xz -T0 -9 -c \
+xz -T0 -9 --check=crc32 -c \
   "$I915_DIR/drivers/gpu/drm/i915/i915.ko" \
   > "$PACKAGE_ROOT/$I915_PATH/i915.ko.xz"
 

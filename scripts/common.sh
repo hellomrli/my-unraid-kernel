@@ -21,6 +21,7 @@ fi
 : "${I915_SRIOV_REF:=2026.08.08}"
 : "${I915_SRIOV_COMMIT:=}"
 : "${I915_MAX_VFS:=7}"
+: "${PACKAGE_BUILD:=1}"
 : "${ZFS_VERSION:=2.4.3}"
 : "${ZFS_TARBALL_URL:=https://github.com/openzfs/zfs/releases/download/zfs-${ZFS_VERSION}/zfs-${ZFS_VERSION}.tar.gz}"
 : "${ZFS_TARBALL_SHA256:=}"

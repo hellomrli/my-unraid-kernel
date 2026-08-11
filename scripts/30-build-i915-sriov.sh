@@ -56,7 +56,7 @@ install -m 0644 "$I915_DIR/drivers/gpu/drm/i915/i915.ko" "$I915_MODULE_DIR/i915.
 install -m 0644 "$I915_DIR/drivers/gpu/drm/i915/kvmgt.ko" "$I915_MODULE_DIR/kvmgt.ko"
 install -m 0644 "$I915_DIR/drivers/gpu/drm/xe/xe.ko" "$XE_MODULE_DIR/xe.ko"
 
-xz -T0 -9 -f \
+xz -T0 -9 --check=crc32 -f \
   "$COMPAT_DIR/intel_sriov_compat.ko" \
   "$I915_MODULE_DIR/i915.ko" \
   "$I915_MODULE_DIR/kvmgt.ko" \
