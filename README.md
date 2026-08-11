@@ -51,6 +51,17 @@ BUILD_ENV_FILE=config/build-6.18.38-plugin.env scripts/all.sh
 That mode uses the matching prebuilt kernel ABI and produces
 `out/i915-sriov-20260808-6.18.38-Unraid-1.txz`.
 
+## GitHub Actions
+
+Builds can run on GitHub-hosted runners from the **Actions** tab using the
+`Build Unraid packages` workflow. Choose `full-6.18.43` for the complete USB
+package or `plugin-6.18.38` for the stock-kernel driver package. The workflow
+uses the official GCC 15.3.0 container, verifies all generated checksums, and
+keeps the outputs as a 14-day Actions artifact. Enable `publish_release` and
+provide an existing release tag when the outputs should also be attached to a
+Release. A full build is CPU-, disk-, and network-intensive and can take
+several hours.
+
 ## Boot and install
 
 Use the i915 path and keep `xe` blacklisted:

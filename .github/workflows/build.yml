@@ -1,0 +1,158 @@
+name: Build Unraid packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Build target
+        required: true
+        type: choice
+        default: full-6.18.43
+        options:
+          - full-6.18.43
+          - plugin-6.18.38
+      publish_release:
+        description: Attach successful outputs to an existing GitHub Release
+        required: true
+        type: boolean
+        default: false
+      release_tag:
+        description: Existing release tag to receive the build outputs
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: unraid-cloud-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    container:
+      # Official GCC image, pinned to the GCC 15.3.0 multi-architecture digest.
+      image: gcc:15.3.0@sha256:486d5379b2d679f18bca957901d628952aa0ebc2d82817047bbef1dbfbc13d70
+    env:
+      BUILD_TARGET: ${{ inputs.target }}
+      PUBLISH_RELEASE: ${{ inputs.publish_release }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      DEBIAN_FRONTEND: noninteractive
+      TZ: UTC
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            autoconf automake bc bison build-essential ca-certificates cpio \
+            curl flex git gh initramfs-tools-core kmod libaio-dev \
+            libattr1-dev libblkid-dev libcurl4-openssl-dev libelf-dev \
+            libmount-dev libssl-dev libtirpc-dev libtool libudev-dev \
+            libzstd-dev make pkg-config tar unzip uuid-dev xz-utils zip zstd
+          rm -rf /var/lib/apt/lists/*
+          gcc --version
+          g++ --version
+          df -h .
+
+      - name: Select a container-safe build configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$BUILD_TARGET" in
+            full-6.18.43)
+              source_env=config/build.env
+              ;;
+            plugin-6.18.38)
+              source_env=config/build-6.18.38-plugin.env
+              ;;
+            *)
+              printf 'Unsupported target: %s\n' "$BUILD_TARGET" >&2
+              exit 2
+              ;;
+          esac
+
+          build_env="$RUNNER_TEMP/build.env"
+          cp "$source_env" "$build_env"
+          compiler_version="$(gcc -dumpfullversion -dumpversion)"
+          sed -i \
+            -e 's|^CC=.*|CC=gcc|' \
+            -e 's|^HOSTCC=.*|HOSTCC=gcc|' \
+            -e 's|^CXX=.*|CXX=g++|' \
+            -e 's|^HOSTCXX=.*|HOSTCXX=g++|' \
+            -e "s|^EXPECTED_CC_VERSION=.*|EXPECTED_CC_VERSION=$compiler_version|" \
+            -e 's|^JOBS=.*|JOBS=all|' \
+            "$build_env"
+          printf 'BUILD_ENV_FILE=%s\n' "$build_env" >> "$GITHUB_ENV"
+          printf 'EXPECTED_CC_VERSION=%s\n' "$compiler_version" >> "$GITHUB_ENV"
+          printf 'Resolved build configuration:\n'
+          sed -n '1,42p' "$build_env"
+
+      - name: Build and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts/all.sh 2>&1 | tee "$RUNNER_TEMP/unraid-build.log"
+          (
+            cd out
+            for checksum in *.sha256 sha256sums-*.txt; do
+              [ -f "$checksum" ] || continue
+              sha256sum -c "$checksum"
+            done
+          )
+          find out -maxdepth 1 -type f -size +0c -printf '%f\t%s bytes\n' | sort > out/cloud-build-manifest.txt
+          df -h .
+
+      - name: Upload build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unraid-${{ inputs.target }}-${{ github.sha }}
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
+          path: |
+            out/*.zip
+            out/*.zip.sha256
+            out/*.txz
+            out/*.txz.sha256
+            out/*.txz.md5
+            out/*installed-modules.txt
+            out/verification-*.txt
+            out/sha256sums-*.txt
+            out/syslinux-append-*.txt
+            out/bzimage-*
+            out/cloud-build-manifest.txt
+            logs/*.log
+            config/generated-linux-*.config
+
+      - name: Attach outputs to an existing release
+        if: ${{ success() && inputs.publish_release }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -n "$RELEASE_TAG" ] || {
+            printf 'release_tag is required when publish_release is enabled\n' >&2
+            exit 2
+          }
+          mapfile -t assets < <(
+            find out -maxdepth 1 -type f -size +0c \
+              \( -name '*.zip' -o -name '*.zip.sha256' -o -name '*.txz' \
+              -o -name '*.txz.sha256' -o -name '*.txz.md5' \
+              -o -name '*installed-modules.txt' -o -name 'verification-*.txt' \
+              -o -name 'sha256sums-*.txt' -o -name 'syslinux-append-*.txt' \
+              -o -name 'bzimage-*' \) -print | sort
+          )
+          [ "${#assets[@]}" -gt 0 ] || {
+            printf 'No release assets were produced\n' >&2
+            exit 1
+          }
+          gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
