@@ -1,28 +1,41 @@
-# Unraid 7.3.2 Linux 6.18.43 with i915 SR-IOV 2026.08.08
+# Unraid i915 SR-IOV kernel builds
 
-This branch builds a test kernel package for Unraid 7.3.2 using:
+This repository publishes experimental Unraid kernels and i915 SR-IOV
+packages. The default `main` branch contains the current 6.18 build. Build
+inputs and verification notes are kept alongside the scripts and release
+documents.
 
-- ich777's prebuilt, Unraid-patched `6.18.43-Unraid` kernel tree
-- `strongtz/i915-sriov-dkms` tag `2026.08.08`
-- OpenZFS `2.4.3`, matching the userspace shipped by Unraid 7.3.2
-- the official Unraid 7.3.2 USB zip as the userspace and firmware base
+## Branches
 
-The 6.18.43 kernel is a small patch-level update from the official
-`6.18.38-Unraid` kernel. The custom i915 source is based on a newer Intel DRM
-tree and needs the included compatibility patch for Unraid's backported slab
-allocation helpers.
+| Branch | Contents |
+| --- | --- |
+| `main` | Unraid 7.3.2 with Linux `6.18.43-Unraid`, i915 SR-IOV `2026.08.08`, and OpenZFS 2.4.3. This is the former `6.18` branch. |
+| `7.0` | The previous `main` history: the Unraid 7.3.1 / Linux 7.1.1 build. |
+
+The `main` build is available from the GitHub Releases page. The release
+assets include:
+
+- `unRAIDServer-7.3.2-Linux-6.18.43-i915-sriov-2026.08.08-x86_64.zip`: a
+  complete Unraid USB package, including the rebuilt `bzimage` and `bzroot`.
+- `i915-sriov-20260808-6.18.43-Unraid-1.txz`: the plugin-compatible driver
+  package for an existing 6.18.43-Unraid installation.
+- SHA-256 and MD5 checksum files, plus the static verification report.
+
+Use the complete ZIP when replacing the Unraid kernel. It keeps the official
+`bzmodules`, `bzfirmware`, bootloader files, and configuration skeleton, and
+replaces `bzimage` and `bzroot` together. Back up the original USB files and
+keep a recovery boot entry before testing.
 
 ## Build
+
+The tracked `config/build.env` pins the GCC 15.3.0 toolchain used for the
+release. Run the complete build from this directory:
 
 ```bash
 scripts/all.sh
 ```
 
-The tracked `config/build.env` pins the local GCC 15.3.0 toolchain used for
-the release. Use `config/build.env.example` as a template only when moving the
-build to another host, and set its compiler paths accordingly.
-
-The main outputs are:
+The principal outputs are written to `out/`:
 
 ```text
 out/unRAIDServer-7.3.2-Linux-6.18.43-i915-sriov-2026.08.08-x86_64.zip
@@ -35,57 +48,40 @@ To build only the driver package for stock Unraid 7.3.2 / 6.18.38-Unraid:
 BUILD_ENV_FILE=config/build-6.18.38-plugin.env scripts/all.sh
 ```
 
-That mode uses ich777's matching prebuilt tree and `Module.symvers`, builds
-the driver with GCC 15.3.0, and produces
-`out/i915-sriov-20260808-6.18.38-Unraid-1.txz`. It does not rebuild the stock
-kernel or download the full Unraid USB image and OpenZFS sources.
+That mode uses the matching prebuilt kernel ABI and produces
+`out/i915-sriov-20260808-6.18.38-Unraid-1.txz`.
 
-It is a complete USB package. Compared with official Unraid 7.3.2 it replaces
-only `bzimage` and `bzroot`. `bzroot` contains the complete
-`/lib/modules/6.18.43-Unraid` tree, including:
+## Boot and install
 
-- all in-tree Unraid kernel modules
-- `i915`, `intel_sriov_compat`, `kvmgt`, and `xe` from strongtz 2026.08.08
-- OpenZFS 2.4.3 `spl` and `zfs` modules
-
-Unraid 7.3.2 stores kernel modules in `bzroot`; `bzmodules` is its `/usr`
-userspace image. Consequently `bzimage` and `bzroot` must always be replaced
-together. The full zip preserves the official `bzmodules`, `bzfirmware`,
-bootloader files, and configuration skeleton.
-
-## Boot Parameters
-
-Use the i915 path and keep xe blacklisted:
+Use the i915 path and keep `xe` blacklisted:
 
 ```text
 intel_iommu=on i915.enable_guc=3 i915.max_vfs=7 module_blacklist=xe
 ```
 
-The second output uses the package name and layout expected by
-`giganode/unraid-i915-sriov`. Put it in the plugin's `packages/6.18.43`
-directory before booting the new kernel, and remove older packages from that
-directory. The plugin blacklists and loads i915 itself, so avoid configuring
-the same option in several places and do not pass the physical function
-through to a VM.
+For the plugin package, verify the checksum and install it while i915 is not
+loaded:
 
-## Recovery
+```sh
+sha256sum -c i915-sriov-20260808-6.18.43-Unraid-1.txz.sha256
+upgradepkg --install-new i915-sriov-20260808-6.18.43-Unraid-1.txz
+depmod -a 6.18.43-Unraid
+```
 
-Back up the original USB files before testing. Keep a boot menu entry using
-the original `bzimage` and `bzroot`; if GPU initialization prevents booting,
-add `module_blacklist=i915,xe` to the recovery entry.
+Reboot into the matching kernel, then check:
 
-This package is experimental. Successful compilation and static module checks
-do not prove SR-IOV stability on a specific Intel GPU.
+```sh
+uname -r
+modinfo i915 | egrep '^(version|vermagic|origin_kernel):'
+```
 
-## Compiler Validation
+Do not unload i915 from an active console or pass the physical-function GPU
+through to a VM. If initialization fails, boot the recovery entry with
+`module_blacklist=i915,xe`.
 
-The published 6.18.43 package is built with GCC 15.3.0. GCC 16.2.0 was also
-built locally and used to compile the complete kernel, strongtz i915 SR-IOV
-2026.08.08, and OpenZFS 2.4.3 against the same ABI. The six external modules
-passed vermagic, compiler-marker, and `depmod -e` checks. See
-`docs/gcc-16.2.0-compatibility-6.18.43.md`; this is a static compatibility
-result, not a boot-tested release.
+## Validation
 
-The stock 6.18.38 kernel was built by Unraid with GCC 14.2.0. Its plugin-only
-2026.08.08 i915 module was intentionally built with GCC 15.3.0 and passed
-vermagic and unresolved-symbol checks against the stock kernel ABI.
+The published 6.18.43 release passed module vermagic, compiler-marker, and
+`depmod -e` checks. A separate GCC 16.2.0 build also passed static ABI checks;
+see `docs/gcc-16.2.0-compatibility-6.18.43.md`. These are compile-time and
+static checks only, not a guarantee of SR-IOV stability on every Intel GPU.
