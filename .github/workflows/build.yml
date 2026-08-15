@@ -7,8 +7,9 @@ on:
         description: Build target
         required: true
         type: choice
-        default: full-6.18.43
+        default: full-6.18.44
         options:
+          - full-6.18.44
           - full-6.18.43
           - plugin-6.18.38
       publish_release:
@@ -66,8 +67,11 @@ jobs:
         run: |
           set -euo pipefail
           case "$BUILD_TARGET" in
-            full-6.18.43)
+            full-6.18.44)
               source_env=config/build.env
+              ;;
+            full-6.18.43)
+              source_env=config/build-6.18.43.env
               ;;
             plugin-6.18.38)
               source_env=config/build-6.18.38-plugin.env
@@ -135,7 +139,7 @@ jobs:
             "config/generated-linux-$KERNEL_RELEASE.config"
           )
 
-          if [ "$BUILD_TARGET" = full-6.18.43 ]; then
+          if [[ "$BUILD_TARGET" == full-* ]]; then
             zip_base="unRAIDServer-${UNRAID_VERSION}-Linux-${TARGET_KERNEL_VERSION}-i915-sriov-${I915_SRIOV_REF}-x86_64.zip"
             artifacts+=(
               "out/$zip_base"
