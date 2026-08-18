@@ -107,12 +107,14 @@ for module in \
   "$COMPAT_MODULE" \
   "$I915_MODULE" \
   "$KVMGT_MODULE" \
-  "$XE_MODULE" \
-  "$MODULE_DIR/extra/spl.ko.xz" \
-  "$MODULE_DIR/extra/zfs.ko.xz"
+  "$XE_MODULE"
 do
   verify_module_compiler "$module"
 done
+if [ "$USE_STOCK_ZFS" != "true" ]; then
+  verify_module_compiler "$MODULE_DIR/extra/spl.ko.xz"
+  verify_module_compiler "$MODULE_DIR/extra/zfs.ko.xz"
+fi
 
 [ "$(find "$MODULE_DIR" -type f -name 'i915.ko*' | wc -l)" -eq 1 ] || die "Duplicate i915 modules in bzroot"
 [ "$(find "$MODULE_DIR" -type f -name 'intel_sriov_compat.ko*' | wc -l)" -eq 1 ] || die "Duplicate compatibility modules in bzroot"
@@ -146,7 +148,7 @@ KERNEL_BANNER="$(strings "$VMLINUX_VERIFY" | awk '!found && /^Linux version / { 
 find "$VMLINUX_VERIFY" -delete
 [ -s "$KERNEL_DIR/vmlinux" ] || die "Missing unstripped kernel ELF: $KERNEL_DIR/vmlinux"
 KERNEL_COMPILER="$(readelf -p .comment "$KERNEL_DIR/vmlinux" 2>/dev/null | awk '/GCC: / { sub(/^.*GCC: /, "GCC: "); sub(/ *$/, ""); print }' | sort -u)"
-if [ -n "$EXPECTED_CC_VERSION" ]; then
+if [ -n "$EXPECTED_CC_VERSION" ] && [ "$USE_STOCK_BZIMAGE" != "true" ]; then
   case "$KERNEL_COMPILER" in
     *" $EXPECTED_CC_VERSION"*) ;;
     *) die "Wrong compiler in vmlinux: ${KERNEL_COMPILER:-missing .comment}" ;;
@@ -158,12 +160,17 @@ if [ -n "$EXPECTED_CC_VERSION" ]; then
 fi
 
 [ "$(sha256sum "$OUT_DIR/bzmodules" | awk '{print $1}')" = "$(unzip -p "$UNRAID_ZIP" bzmodules | sha256sum | awk '{print $1}')" ] || die "bzmodules differs from official Unraid $UNRAID_VERSION"
+if [ "$USE_STOCK_BZIMAGE" = "true" ]; then
+  [ "$(sha256sum "$OUT_DIR/bzimage-$KERNEL_RELEASE" | awk '{print $1}')" = "$(unzip -p "$UNRAID_ZIP" bzimage | sha256sum | awk '{print $1}')" ] || die "bzimage differs from official Unraid $UNRAID_VERSION"
+fi
 unzip -tq "$ZIP_OUT"
 
 {
   printf 'kernel_release=%s\n' "$KERNEL_RELEASE"
   printf 'kernel_banner=%s\n' "$KERNEL_BANNER"
   printf 'kernel_compiler=%s\n' "$KERNEL_COMPILER"
+  printf 'bzimage_source=%s\n' "$([ "$USE_STOCK_BZIMAGE" = "true" ] && printf official || printf rebuilt)"
+  printf 'modules_source=%s\n' "$([ "$MERGE_STOCK_MODULES" = "true" ] && printf merged || printf rebuilt)"
   printf 'i915_version=%s\n' "$(modinfo -F version "$I915_MODULE")"
   printf 'i915_origin_kernel=%s\n' "$(modinfo -F origin_kernel "$I915_MODULE")"
   printf 'i915_vermagic=%s\n' "$(modinfo -F vermagic "$I915_MODULE")"

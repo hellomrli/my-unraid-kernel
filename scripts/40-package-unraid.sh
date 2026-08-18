@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 need_cmd awk
 need_cmd cpio
+need_cmd depmod
 need_cmd sha256sum
 need_cmd unmkinitramfs
 need_cmd unzip
@@ -20,7 +21,9 @@ need_cmd zstd
 MODULE_DIR="$MODULE_STAGE/lib/modules/$KERNEL_RELEASE"
 [ -s "$MODULE_DIR/kernel/drivers/gpu/drm/i915/i915.ko.xz" ] || die "Missing i915 SR-IOV module"
 [ -s "$MODULE_DIR/updates/compat/intel_sriov_compat.ko.xz" ] || die "Missing i915 compatibility module"
-[ -s "$MODULE_DIR/extra/zfs.ko.xz" ] || die "Missing OpenZFS module"
+if [ "$USE_STOCK_ZFS" != "true" ]; then
+  [ -s "$MODULE_DIR/extra/zfs.ko.xz" ] || die "Missing OpenZFS module"
+fi
 
 I915_PACKAGE_VERSION="${I915_SRIOV_REF//./}"
 I915_PACKAGE="i915-sriov-${I915_PACKAGE_VERSION}-${KERNEL_RELEASE}-${PACKAGE_BUILD}.txz"
@@ -48,17 +51,40 @@ unzip -q "$UNRAID_ZIP" -d "$UNRAID_EXTRACT_DIR"
 [ -s "$UNRAID_EXTRACT_DIR/bzfirmware" ] || die "Official zip did not contain bzfirmware"
 
 log "Packaging bzimage"
-install -m 0644 "$KERNEL_DIR/arch/x86/boot/bzImage" "$OUT_DIR/bzimage-$KERNEL_RELEASE"
-install -m 0644 "$KERNEL_DIR/arch/x86/boot/bzImage" "$OUT_DIR/bzimage"
+if [ "$USE_STOCK_BZIMAGE" = "true" ]; then
+  install -m 0644 "$UNRAID_EXTRACT_DIR/bzimage" "$OUT_DIR/bzimage-$KERNEL_RELEASE"
+  install -m 0644 "$UNRAID_EXTRACT_DIR/bzimage" "$OUT_DIR/bzimage"
+else
+  install -m 0644 "$KERNEL_DIR/arch/x86/boot/bzImage" "$OUT_DIR/bzimage-$KERNEL_RELEASE"
+  install -m 0644 "$KERNEL_DIR/arch/x86/boot/bzImage" "$OUT_DIR/bzimage"
+fi
 
 log "Repacking bzroot with $KERNEL_RELEASE modules"
 unmkinitramfs "$UNRAID_EXTRACT_DIR/bzroot" "$BZR_WORK"
-find "$BZR_WORK/lib/modules" -mindepth 1 -depth -type f -delete
-find "$BZR_WORK/lib/modules" -mindepth 1 -depth -type l -delete
-find "$BZR_WORK/lib/modules" -mindepth 1 -depth -type d -empty -delete
-cp -a "$MODULE_DIR" "$BZR_WORK/lib/modules/$KERNEL_RELEASE"
-ln -sfn "/usr/src/linux-$KERNEL_RELEASE" "$BZR_WORK/lib/modules/$KERNEL_RELEASE/build"
-ln -sfn "/usr/src/linux-$KERNEL_RELEASE" "$BZR_WORK/lib/modules/$KERNEL_RELEASE/source"
+if [ "$MERGE_STOCK_MODULES" = "true" ]; then
+  STOCK_MODULE_DIR="$BZR_WORK/lib/modules/$KERNEL_RELEASE"
+  [ -d "$STOCK_MODULE_DIR" ] || die "Official bzroot does not contain $KERNEL_RELEASE modules"
+
+  # Keep the beta's complete module tree (including its OpenZFS build) and
+  # replace only the SR-IOV driver payload.
+  for module in \
+    updates/compat/intel_sriov_compat.ko.xz \
+    kernel/drivers/gpu/drm/i915/i915.ko.xz \
+    kernel/drivers/gpu/drm/i915/kvmgt.ko.xz \
+    kernel/drivers/gpu/drm/xe/xe.ko.xz
+  do
+    [ -s "$MODULE_DIR/$module" ] || die "Missing staged module: $module"
+    install -D -m 0644 "$MODULE_DIR/$module" "$STOCK_MODULE_DIR/$module"
+  done
+  depmod -b "$BZR_WORK" -F "$KERNEL_DIR/System.map" "$KERNEL_RELEASE"
+else
+  find "$BZR_WORK/lib/modules" -mindepth 1 -depth -type f -delete
+  find "$BZR_WORK/lib/modules" -mindepth 1 -depth -type l -delete
+  find "$BZR_WORK/lib/modules" -mindepth 1 -depth -type d -empty -delete
+  cp -a "$MODULE_DIR" "$BZR_WORK/lib/modules/$KERNEL_RELEASE"
+  ln -sfn "/usr/src/linux-$KERNEL_RELEASE" "$BZR_WORK/lib/modules/$KERNEL_RELEASE/build"
+  ln -sfn "/usr/src/linux-$KERNEL_RELEASE" "$BZR_WORK/lib/modules/$KERNEL_RELEASE/source"
+fi
 
 (
   cd "$BZR_WORK"
@@ -69,8 +95,8 @@ ln -sfn "/usr/src/linux-$KERNEL_RELEASE" "$BZR_WORK/lib/modules/$KERNEL_RELEASE/
 cat "$BZR_REPACK/early.cpio" "$BZR_REPACK/main.cpio.zst" > "$OUT_DIR/bzroot-$KERNEL_RELEASE"
 cp -f "$OUT_DIR/bzroot-$KERNEL_RELEASE" "$OUT_DIR/bzroot"
 
-# bzmodules is the /usr userspace image in Unraid 7.3.2, not the kernel module
-# tree. Preserve it byte-for-byte; the module tree above belongs in bzroot.
+# bzmodules is the /usr userspace image, not the kernel module tree. Preserve
+# it byte-for-byte; the module tree above belongs in bzroot.
 cp -f "$UNRAID_EXTRACT_DIR/bzmodules" "$OUT_DIR/bzmodules"
 
 cat > "$OUT_DIR/syslinux-append-i915-sriov.txt" <<EOF

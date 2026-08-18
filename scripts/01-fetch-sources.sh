@@ -19,8 +19,12 @@ else
   download_file "$UNRAID_ZIP_URL" "$UNRAID_ZIP"
   verify_sha256 "$UNRAID_ZIP" "$UNRAID_ZIP_SHA256"
 
-  download_file "$ZFS_TARBALL_URL" "$ZFS_TARBALL"
-  verify_sha256 "$ZFS_TARBALL" "$ZFS_TARBALL_SHA256"
+  if [ "$USE_STOCK_ZFS" = "true" ]; then
+    log "Using OpenZFS modules from the official Unraid package"
+  else
+    download_file "$ZFS_TARBALL_URL" "$ZFS_TARBALL"
+    verify_sha256 "$ZFS_TARBALL" "$ZFS_TARBALL_SHA256"
+  fi
 fi
 
 if [ -d "$I915_DIR/.git" ]; then
