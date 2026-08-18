@@ -9,27 +9,28 @@ documents.
 
 | Branch | Contents |
 | --- | --- |
-| `main` | Unraid 7.3.2 with Linux `6.18.44-Unraid`, i915 SR-IOV `2026.08.12.1`, and OpenZFS 2.4.3. |
+| `main` | Unraid 7.4.0-beta.1 with Linux `6.18.44-Unraid`, i915 SR-IOV `2026.08.12.1`, and the beta package's OpenZFS 2.4.3. |
 | `7.0` | The previous history: the Unraid 7.3.1 / Linux 7.1.1 build. |
 
 The `main` build is available from the GitHub Releases page. The release
 assets include:
 
-- `unRAIDServer-7.3.2-Linux-6.18.44-i915-sriov-2026.08.12.1-x86_64.zip`: a
-  complete Unraid USB package, including the rebuilt `bzimage` and `bzroot`.
-- `i915-sriov-202608121-6.18.44-Unraid-1.txz`: the plugin-compatible driver
+- `unRAIDServer-7.4.0-beta.1-Linux-6.18.44-i915-sriov-2026.08.12.1-x86_64.zip`:
+  the beta1 USB package with SR-IOV modules merged into its `bzroot`.
+- `i915-sriov-202608121-6.18.44-Unraid-2.txz`: the GCC 16.2.0 plugin-compatible driver
   package for an existing 6.18.44-Unraid installation.
 - SHA-256 and MD5 checksum files, plus the static verification report.
 
-Use the complete ZIP when replacing the Unraid kernel. It keeps the official
-`bzmodules`, `bzfirmware`, bootloader files, and configuration skeleton, and
-replaces `bzimage` and `bzroot` together. Back up the original USB files and
-keep a recovery boot entry before testing.
+Use the complete ZIP when replacing the Unraid beta USB contents. It keeps
+the official beta `bzimage`, `bzmodules`, `bzfirmware`, bootloader files,
+userspace and OpenZFS modules, and replaces only `bzroot` with the SR-IOV
+modules merged in. Back up the original USB files and keep a recovery boot
+entry before testing.
 
 ## Build
 
-The tracked `config/build.env` pins the GCC 15.3.0 toolchain used for the
-release. Run the complete build from this directory:
+The tracked `config/build.env` pins GCC 16.2.0 for the injected SR-IOV
+modules. Run the complete build from this directory:
 
 ```bash
 scripts/all.sh
@@ -38,9 +39,13 @@ scripts/all.sh
 The principal outputs are written to `out/`:
 
 ```text
-out/unRAIDServer-7.3.2-Linux-6.18.44-i915-sriov-2026.08.12.1-x86_64.zip
-out/i915-sriov-202608121-6.18.44-Unraid-1.txz
+out/unRAIDServer-7.4.0-beta.1-Linux-6.18.44-i915-sriov-2026.08.12.1-x86_64.zip
+out/i915-sriov-202608121-6.18.44-Unraid-2.txz
 ```
+
+The default beta configuration uses the official kernel image and merges the
+four SR-IOV modules into the official module tree. It does not rebuild or
+replace the OpenZFS modules already present in beta1.
 
 To build only the driver package for stock Unraid 7.3.2 / 6.18.38-Unraid:
 
@@ -68,10 +73,10 @@ This produces the full 6.18.43 package and the revision-2 driver package
 ## GitHub Actions
 
 Builds can run on GitHub-hosted runners from the **Actions** tab using the
-`Build Unraid packages` workflow. Choose `full-6.18.44` for the complete USB
-package, `full-6.18.43` for the previous release configuration, or
+`Build Unraid packages` workflow. Choose `full-7.4.0-beta.1` for the beta
+package, `full-6.18.44` or `full-6.18.43` for the previous configurations, or
 `plugin-6.18.38` for the stock-kernel driver package. The workflow
-uses the official GCC 15.3.0 container, verifies all generated checksums, and
+uses the official GCC 16.2.0 container, verifies all generated checksums, and
 keeps the outputs as a 14-day Actions artifact. Enable `publish_release` and
 provide an existing release tag when the outputs should also be attached to a
 Release. A full build is CPU-, disk-, and network-intensive and can take
@@ -89,8 +94,8 @@ For the plugin package, verify the checksum and install it while i915 is not
 loaded:
 
 ```sh
-sha256sum -c i915-sriov-202608121-6.18.44-Unraid-1.txz.sha256
-upgradepkg --install-new i915-sriov-202608121-6.18.44-Unraid-1.txz
+sha256sum -c i915-sriov-202608121-6.18.44-Unraid-2.txz.sha256
+upgradepkg --install-new i915-sriov-202608121-6.18.44-Unraid-2.txz
 depmod -a 6.18.44-Unraid
 ```
 

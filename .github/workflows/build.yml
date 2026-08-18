@@ -7,8 +7,9 @@ on:
         description: Build target
         required: true
         type: choice
-        default: full-6.18.44
+        default: full-7.4.0-beta.1
         options:
+          - full-7.4.0-beta.1
           - full-6.18.44
           - full-6.18.43
           - plugin-6.18.38
@@ -34,8 +35,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     container:
-      # Official GCC image, pinned to the GCC 15.3.0 multi-architecture digest.
-      image: gcc:15.3.0@sha256:486d5379b2d679f18bca957901d628952aa0ebc2d82817047bbef1dbfbc13d70
+      # Official GCC image, pinned to the GCC 16.2.0 multi-architecture digest.
+      image: gcc:16.2.0@sha256:b69972d6afe6d5f6c7f91ae30027caf8a50549ee25b63031071383d00941bf2f
     env:
       BUILD_TARGET: ${{ inputs.target }}
       PUBLISH_RELEASE: ${{ inputs.publish_release }}
@@ -67,8 +68,11 @@ jobs:
         run: |
           set -euo pipefail
           case "$BUILD_TARGET" in
+            full-7.4.0-beta.1)
+              source_env=config/build-7.4.0-beta.1.env
+              ;;
             full-6.18.44)
-              source_env=config/build.env
+              source_env=config/build-6.18.44.env
               ;;
             full-6.18.43)
               source_env=config/build-6.18.43.env

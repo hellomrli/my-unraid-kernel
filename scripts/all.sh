@@ -15,6 +15,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ "${PLUGIN_ONLY:-false}" = "true" ]; then
   exit 0
 fi
-"$SCRIPT_DIR/35-build-zfs.sh"
+
+if [ "${USE_STOCK_ZFS:-false}" = "true" ]; then
+  log "Skipping OpenZFS rebuild; the official package already supplies it"
+else
+  "$SCRIPT_DIR/35-build-zfs.sh"
+fi
 "$SCRIPT_DIR/40-package-unraid.sh"
 "$SCRIPT_DIR/50-verify.sh"

@@ -1,4 +1,4 @@
-make: 进入目录“/home/lain/codex/i915/my-unraid-kernel/build/linux-6.18.44”
+make: Entering directory '/home/lain/codex/i915/my-unraid-kernel/build/linux-6.18.44'
   SYMLINK /home/lain/codex/i915/my-unraid-kernel/build/modules-stage/lib/modules/6.18.44-Unraid/build
   INSTALL /home/lain/codex/i915/my-unraid-kernel/build/modules-stage/lib/modules/6.18.44-Unraid/modules.order
   INSTALL /home/lain/codex/i915/my-unraid-kernel/build/modules-stage/lib/modules/6.18.44-Unraid/modules.builtin
@@ -2392,4 +2392,4 @@ make: 进入目录“/home/lain/codex/i915/my-unraid-kernel/build/linux-6.18.44�
   INSTALL /home/lain/codex/i915/my-unraid-kernel/build/modules-stage/lib/modules/6.18.44-Unraid/kernel/net/qrtr/qrtr-mhi.ko
   XZ      /home/lain/codex/i915/my-unraid-kernel/build/modules-stage/lib/modules/6.18.44-Unraid/kernel/net/qrtr/qrtr-mhi.ko.xz
   DEPMOD  /home/lain/codex/i915/my-unraid-kernel/build/modules-stage/lib/modules/6.18.44-Unraid
-make: 离开目录“/home/lain/codex/i915/my-unraid-kernel/build/linux-6.18.44”
+make: Leaving directory '/home/lain/codex/i915/my-unraid-kernel/build/linux-6.18.44'
