@@ -1,42 +1,41 @@
 # Unraid 7.3.2 / Linux 6.18.44 / i915 SR-IOV 2026.08.12.1
 
-This release is based on the official Unraid 7.3.2 USB package and uses the
-`6.18.44-Unraid` build from `ich777/unraid_kernel` (released 2026-08-12,
-prebuilt with GCC 14.2.0 upstream; rebuilt here with GCC 15.3.0).
+本发布基于官方 Unraid 7.3.2 USB 包，使用来自 `ich777/unraid_kernel` 的
+`6.18.44-Unraid` 构建（2026-08-12 发布，上游用 GCC 14.2.0 预编译；
+此处用 GCC 15.3.0 重新编译）。
 
-Included kernel-specific components:
+包含的内核相关组件：
 
-- all 1,197 in-tree modules built with the 6.18.44 Unraid configuration
-- strongtz i915 SR-IOV `2026.08.12.1` (`i915`, `intel_sriov_compat`, `kvmgt`,
-  `xe`) — the latest release of the 6.17.x ~ 7.1.x driver line, which keeps
-  building against ongoing 6.18 point releases (PR #473)
-- OpenZFS 2.4.3 (`spl`, `zfs`), matching Unraid 7.3.2 userspace
-- a giganode-plugin-compatible `i915-sriov-202608121-6.18.44-Unraid-1.txz`
+- 使用 6.18.44 Unraid 配置编译的全部 1,197 个内核树内模块
+- strongtz i915 SR-IOV `2026.08.12.1`（`i915`、`intel_sriov_compat`、
+  `kvmgt`、`xe`）—— 6.17.x ~ 7.1.x 驱动分支的最新发布，持续适配 6.18
+  系列小版本（PR #473）
+- OpenZFS 2.4.3（`spl`、`zfs`），与 Unraid 7.3.2 用户空间匹配
+- 兼容 giganode 插件的 `i915-sriov-202608121-6.18.44-Unraid-1.txz`
 
-The release build uses GCC 15.3.0. Kernel modules are XZ-compressed with
-CRC32, which the 6.18.44 module decompressor requires.
+发布构建使用 GCC 15.3.0。内核模块采用 XZ + CRC32 压缩，这是 6.18.44
+模块解压器所要求的格式。
 
-## Checksums
+## 校验和
 
 ```text
 85f4df8687a1948ecc0c5153ba71b17f6e023e517964e97e9ad0177cbac2fec0  unRAIDServer-7.3.2-Linux-6.18.44-i915-sriov-2026.08.12.1-x86_64.zip
 044e6f19e985489c7e69955d5c94062427984af3ceebba4b1fe0638f24a5faf7  i915-sriov-202608121-6.18.44-Unraid-1.txz
 db19854339b7052d98cd08bd26d81c060c62586ccbb2e0be9777684c85eed071  bzimage-6.18.44-Unraid
 4834cd8f6da03aaae81bb2ec1f8b5fa9ccbe0b0c427faa82a872e7b8041977dc  bzroot-6.18.44-Unraid
-01811f5fe1d2214928f24a398109ab10bd2a995454a81a040ce7c86dd1cd6ebb  bzmodules (identical to stock Unraid 7.3.2)
+01811f5fe1d2214928f24a398109ab10bd2a995454a81a040ce7c86dd1cd6ebb  bzmodules（与官方 Unraid 7.3.2 完全一致）
 ```
 
-## Install
+## 安装
 
-Use the complete ZIP and replace `bzimage` and `bzroot` together; `bzmodules`
-stays stock Unraid 7.3.2. Ensure the default syslinux entry contains:
+使用完整 ZIP，把 `bzimage` 和 `bzroot` 一起替换；`bzmodules` 保持官方
+Unraid 7.3.2 不变。确保默认 syslinux 启动项包含：
 
 ```text
 intel_iommu=on i915.enable_guc=3 i915.max_vfs=7 module_blacklist=xe
 ```
 
-For an existing 6.18.44-Unraid installation, install the plugin package while
-i915 is not loaded:
+对于已安装 6.18.44-Unraid 的系统，在 i915 未加载时安装插件包：
 
 ```sh
 sha256sum -c i915-sriov-202608121-6.18.44-Unraid-1.txz.sha256
@@ -44,25 +43,24 @@ upgradepkg --install-new i915-sriov-202608121-6.18.44-Unraid-1.txz
 depmod -a 6.18.44-Unraid
 ```
 
-After reboot, verify:
+重启后验证：
 
 ```sh
 uname -r
 modinfo i915 | egrep '^(version|vermagic|origin_kernel):'
 ```
 
-## Validation
+## 验证
 
-Static validation completed successfully:
+静态验证全部通过：
 
-- the kernel and all custom modules report `GCC: (GNU) 15.3.0`;
-- i915 version `2026.08.12.1-sriov` with `6.18.44-Unraid SMP preempt
-  mod_unload` vermagic;
-- i915, compat, kvmgt, xe, spl, and zfs all use XZ CRC32;
-- `depmod -e` reports no unresolved symbols across 1,197 staged modules;
-- the complete ZIP passes `unzip -t`, and `bzmodules` is preserved
-  byte-for-byte from the official Unraid 7.3.2 image.
+- 内核和所有自定义模块报告 `GCC: (GNU) 15.3.0`；
+- i915 版本 `2026.08.12.1-sriov`，vermagic 为 `6.18.44-Unraid SMP preempt
+  mod_unload`；
+- i915、compat、kvmgt、xe、spl、zfs 全部使用 XZ CRC32；
+- 对 1,197 个暂存模块执行 `depmod -e` 无未解析符号；
+- 完整 ZIP 通过 `unzip -t` 检查，`bzmodules` 与官方 Unraid 7.3.2 镜像
+  逐字节一致。
 
-These are compile-time and static ABI checks only, not a guarantee of SR-IOV
-stability on every Intel GPU. Keep the original USB files and a recovery boot
-entry available before testing.
+以上只是编译期和静态 ABI 检查，并不能保证在所有 Intel GPU 上 SR-IOV 的
+稳定性。测试前请保留原始 USB 文件和恢复启动项。
