@@ -1,0 +1,116 @@
+name: Watch upstream releases
+
+# Daily check of the three upstream sources that drive a new kernel release:
+#   1. Unraid OS (official releases JSON, latest public version incl. beta/rc)
+#   2. ich777/unraid_kernel (official kernel source archive availability)
+#   3. strongtz/i915-sriov-dkms (latest SR-IOV driver tag)
+# When any of them moved past the last built state, the workflow dispatches
+# the cloud build (build.yml, target auto-latest) which publishes a new
+# release. State advances only after a successful build, so a failed build is
+# retried by the next run.
+
+on:
+  schedule:
+    # 02:30 UTC every day (GitHub may delay scheduled runs a bit).
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+  repository_dispatch:
+    types: [check-upstream]
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: unraid-upstream-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Detect upstream versions
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/detect-upstream.sh > upstream.json
+          echo "=== detected upstream ==="
+          cat upstream.json
+
+      - name: Compare with last built state
+        id: compare
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/upstream-compare.py upstream.json config/upstream-state.env
+
+      - name: Summary
+        run: |
+          echo "Detected : Unraid $DETECTED_UNRAID / kernel $DETECTED_KERNEL / i915 $DETECTED_I915 / official GCC $DETECTED_OFFICIAL_GCC"
+          echo "Last built: Unraid $LAST_UNRAID / kernel $LAST_KERNEL / i915 $LAST_I915"
+          echo "Need build: $NEED_BUILD"
+          if [ "$NEED_BUILD" = "true" ]; then
+            echo "::warning::Upstream moved; dispatching a cloud build."
+          fi
+
+      - name: Dispatch cloud build
+        if: env.NEED_BUILD == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Avoid piling up builds: if a build is running or queued, the next
+          # daily run will dispatch again (state is unchanged until success).
+          for status in in_progress queued; do
+            n="$(gh run list --workflow=build.yml --status "$status" \
+                 --limit 1 --json databaseId --jq 'length' 2>/dev/null || echo 0)"
+            if [ "${n:-0}" -gt 0 ]; then
+              echo "A cloud build is already $status; skipping this dispatch."
+              exit 0
+            fi
+          done
+
+          D="$(cat upstream.json)"
+          UNRAID_VERSION="$(jq -r .unraid.version <<<"$D")"
+          UNRAID_URL="$(jq -r .unraid.url <<<"$D")"
+          UNRAID_SHA="$(jq -r .unraid.sha256 <<<"$D")"
+          KERNEL_RELEASE="$(jq -r .official.kernel <<<"$D")"
+          KERNEL_ARCHIVE_URL="$(jq -r .kernel.archive_url <<<"$D")"
+          KERNEL_SHA="$(jq -r .kernel.archive_sha256 <<<"$D")"
+          I915_REF="$(jq -r .i915.ref <<<"$D")"
+          I915_COMMIT="$(jq -r .i915.commit <<<"$D")"
+          OFFICIAL_GCC="$(jq -r .official.gcc <<<"$D")"
+
+          # GCC toolchain: max(MIN_GCC_VERSION, official kernel GCC).
+          GCC_VERSION="$(printf '%s\n%s\n' "$MIN_GCC" "$OFFICIAL_GCC" | sort -V | tail -n1)"
+          RELEASE_TAG="v${UNRAID_VERSION}-${KERNEL_RELEASE}-i915-${I915_REF}"
+
+          jq -n \
+            --arg uv "$UNRAID_VERSION" --arg uz "$UNRAID_URL" --arg us "$UNRAID_SHA" \
+            --arg kr "$KERNEL_RELEASE" --arg ka "$KERNEL_ARCHIVE_URL" --arg ks "$KERNEL_SHA" \
+            --arg ir "$I915_REF" --arg ic "$I915_COMMIT" \
+            --arg gv "$GCC_VERSION" --arg og "$OFFICIAL_GCC" --arg rt "$RELEASE_TAG" \
+            '{unraid_version:$uv, unraid_zip_url:$uz, unraid_zip_sha256:$us,
+              kernel_release:$kr, kernel_archive_url:$ka, kernel_archive_sha256:$ks,
+              i915_sriov_ref:$ir, i915_sriov_commit:$ic,
+              gcc_version:$gv, official_gcc:$og, release_tag:$rt}' > params.json
+
+          echo "=== build parameters ==="
+          cat params.json
+
+          gh workflow run build.yml \
+            -f target=auto-latest \
+            -f publish_release=true \
+            -f "release_tag=$RELEASE_TAG" \
+            -f "gcc_version=$GCC_VERSION" \
+            -f "auto_params=$(cat params.json)"
+
+          echo "Dispatched cloud build for Unraid $UNRAID_VERSION / $KERNEL_RELEASE / i915 $I915_REF"
+          echo "Release tag: $RELEASE_TAG"
