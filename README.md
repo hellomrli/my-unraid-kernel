@@ -12,14 +12,23 @@ documents.
 | `main` | Unraid 7.4.0-beta.1 with Linux `6.18.44-Unraid`, i915 SR-IOV `2026.08.12.1`, and the beta package's OpenZFS 2.4.3. |
 | `7.0` | The previous history: the Unraid 7.3.1 / Linux 7.1.1 build. |
 
-The `main` build is available from the GitHub Releases page. The release
-assets include:
+The `main` build is published to the GitHub Releases page by the automatic
+cloud build. Each release includes:
 
 - `unRAIDServer-7.4.0-beta.1-Linux-6.18.44-i915-sriov-2026.08.12.1-x86_64.zip`:
-  the beta1 USB package with SR-IOV modules merged into its `bzroot`.
-- `i915-sriov-202608121-6.18.44-Unraid-2.txz`: the GCC 16.2.0 plugin-compatible driver
-  package for an existing 6.18.44-Unraid installation.
-- SHA-256 and MD5 checksum files, plus the static verification report.
+  the beta1 USB package with the four SR-IOV modules merged into its
+  `bzroot` (the official `bzimage`, `bzmodules`, `bzfirmware`, userspace and
+  OpenZFS modules are kept as-is).
+- `i915-sriov-202608121-6.18.44-Unraid-1.txz`: the plugin-compatible driver
+  package built with the official kernel's GCC (15.3.0) for an existing
+  6.18.44-Unraid installation.
+- SHA-256/MD5 checksums, the static verification reports, the `bzimage`, the
+  kernel configuration, the module manifests, and the recommended syslinux
+  append line.
+
+The earlier locally built revision-2 package `...-2.txz` was produced with
+GCC 16.2.0; the cloud pipeline follows the official kernel's compiler and
+numbers its packages `-1`.
 
 Use the complete ZIP when replacing the Unraid beta USB contents. It keeps
 the official beta `bzimage`, `bzmodules`, `bzfirmware`, bootloader files,
@@ -30,7 +39,9 @@ entry before testing.
 ## Build
 
 The tracked `config/build.env` pins GCC 16.2.0 for the injected SR-IOV
-modules. Run the complete build from this directory:
+modules (a local compatibility build; the cloud pipeline instead follows the
+official kernel's GCC, currently 15.3.0). Run the complete build from this
+directory:
 
 ```bash
 scripts/all.sh
@@ -119,6 +130,21 @@ To run a check manually, trigger `Watch upstream releases` from the Actions
 tab; the log shows the detected versions, the last built state, and whether a
 cloud build was dispatched.
 
+### Verified end-to-end
+
+The pipeline was exercised with a real cloud build on 2026-08-20: the watch
+parameters resolved GCC 15.3.0, the build ran inside the `gcc:15.3.0`
+container, and it published
+[release `v7.4.0-beta.1-6.18.44-Unraid-i915-2026.08.12.1`](https://github.com/hellomrli/my-unraid-kernel/releases/tag/v7.4.0-beta.1-6.18.44-Unraid-i915-2026.08.12.1)
+with the 1.2 GB USB zip, the plugin `.txz`, checksums, and verification
+reports. The upstream state file was advanced on `main` immediately after.
+
+Technical note: bzroot unpacking uses `scripts/unpack-bzroot.py`
+(stdlib-only). The `unmkinitramfs` shipped in the Debian-based GCC container
+images cannot handle the official Unraid bzroot layout (an uncompressed
+`newc` cpio followed by a `zstd`-compressed cpio), so the pipeline unpacks
+with GNU `cpio` directly instead.
+
 ## Boot and install
 
 Use the i915 path and keep `xe` blacklisted:
@@ -128,11 +154,12 @@ intel_iommu=on i915.enable_guc=3 i915.max_vfs=7 module_blacklist=xe
 ```
 
 For the plugin package, verify the checksum and install it while i915 is not
-loaded:
+loaded (use the revision number from the release; `-1` is the current cloud
+build):
 
 ```sh
-sha256sum -c i915-sriov-202608121-6.18.44-Unraid-2.txz.sha256
-upgradepkg --install-new i915-sriov-202608121-6.18.44-Unraid-2.txz
+sha256sum -c i915-sriov-202608121-6.18.44-Unraid-1.txz.sha256
+upgradepkg --install-new i915-sriov-202608121-6.18.44-Unraid-1.txz
 depmod -a 6.18.44-Unraid
 ```
 
@@ -149,6 +176,8 @@ through to a VM. If initialization fails, boot the recovery entry with
 
 ## Validation
 
-The published 6.18.44 release passed module vermagic, compiler-marker, and
-`depmod -e` checks. These are compile-time and static checks only, not a
-guarantee of SR-IOV stability on every Intel GPU.
+Every published release passes module vermagic, compiler-marker, and
+`depmod -e` checks, both locally and in the cloud pipeline — `scripts/50-verify.sh`
+unpacks the repacked `bzroot` and verifies it before anything is uploaded.
+These are compile-time and static checks only, not a guarantee of SR-IOV
+stability on every Intel GPU.
