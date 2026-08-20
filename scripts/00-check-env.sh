@@ -19,7 +19,7 @@ required=(
 )
 
 if [ "$PLUGIN_ONLY" != "true" ]; then
-  required+=(bc bison cpio flex unmkinitramfs unzip zip zstd)
+  required+=(bc bison cpio flex python3 unzip zip zstd)
 fi
 
 missing=0
@@ -49,7 +49,7 @@ if [ "$missing" -ne 0 ]; then
 
 Install the missing build tools before compiling. Ubuntu/Debian package names
 usually include: build-essential bc bison flex libelf-dev libssl-dev xz-utils git curl
-kmod unzip zip zstd initramfs-tools-core autoconf automake libtool uuid-dev
+kmod unzip zip zstd python3 autoconf automake libtool uuid-dev
 libblkid-dev libudev-dev libaio-dev libattr1-dev libzstd-dev libcurl4-openssl-dev
 
 EOF
