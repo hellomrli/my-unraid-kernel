@@ -8,8 +8,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 need_cmd awk
 need_cmd cpio
 need_cmd depmod
+need_cmd python3
 need_cmd sha256sum
-need_cmd unmkinitramfs
 need_cmd unzip
 need_cmd zip
 need_cmd zstd
@@ -60,7 +60,7 @@ else
 fi
 
 log "Repacking bzroot with $KERNEL_RELEASE modules"
-unmkinitramfs "$UNRAID_EXTRACT_DIR/bzroot" "$BZR_WORK"
+python3 "$SCRIPT_DIR/unpack-bzroot.py" "$UNRAID_EXTRACT_DIR/bzroot" "$BZR_WORK"
 if [ "$MERGE_STOCK_MODULES" = "true" ]; then
   STOCK_MODULE_DIR="$BZR_WORK/lib/modules/$KERNEL_RELEASE"
   [ -d "$STOCK_MODULE_DIR" ] || die "Official bzroot does not contain $KERNEL_RELEASE modules"

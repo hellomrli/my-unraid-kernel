@@ -7,11 +7,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 need_cmd modinfo
 need_cmd depmod
+need_cmd python3
 need_cmd readelf
 need_cmd sha256sum
 need_cmd strings
 need_cmd tar
-need_cmd unmkinitramfs
 need_cmd unzip
 need_cmd xz
 
@@ -33,7 +33,7 @@ if [ -d "$VERIFY_DIR" ]; then
   find "$VERIFY_DIR" -depth -type d -empty -delete
 fi
 mkdir -p "$VERIFY_DIR"
-unmkinitramfs "$OUT_DIR/bzroot-$KERNEL_RELEASE" "$VERIFY_DIR"
+python3 "$SCRIPT_DIR/unpack-bzroot.py" "$OUT_DIR/bzroot-$KERNEL_RELEASE" "$VERIFY_DIR"
 
 MODULE_DIR="$VERIFY_DIR/lib/modules/$KERNEL_RELEASE"
 [ -d "$MODULE_DIR" ] || die "Repacked bzroot does not contain $KERNEL_RELEASE"
