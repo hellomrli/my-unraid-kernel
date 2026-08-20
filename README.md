@@ -72,15 +72,52 @@ This produces the full 6.18.43 package and the revision-2 driver package
 
 ## GitHub Actions
 
-Builds can run on GitHub-hosted runners from the **Actions** tab using the
-`Build Unraid packages` workflow. Choose `full-7.4.0-beta.1` for the beta
-package, `full-6.18.44` or `full-6.18.43` for the previous configurations, or
-`plugin-6.18.38` for the stock-kernel driver package. The workflow
-uses the official GCC 16.2.0 container, verifies all generated checksums, and
-keeps the outputs as a 14-day Actions artifact. Enable `publish_release` and
-provide an existing release tag when the outputs should also be attached to a
-Release. A full build is CPU-, disk-, and network-intensive and can take
-several hours.
+### Cloud builds (no local compilation)
+
+All compilation happens on GitHub-hosted runners inside the official GCC
+container image. The compiler follows the **official Unraid kernel package**:
+the build resolves the GCC version embedded in the official `bzimage` (via
+`scripts/extract-official-gcc.py`) and uses `max(15.3.0, official GCC)` as the
+container image tag. Manual targets are resolved the same way; an explicit
+`gcc_version` input always wins.
+
+Two workflows are provided:
+
+- **Build Unraid packages** (`build.yml`) — build one of the manual targets
+  (`full-7.4.0-beta.1`, `full-6.18.44`, `full-6.18.43`, `plugin-6.18.38`) or
+  `auto-latest` for a fully parameterized build. Enable `publish_release` and
+  provide a `release_tag` to attach the outputs to a Release; the Release is
+  created automatically when the tag does not exist yet. Outputs are also kept
+  as a 14-day Actions artifact. A full build is CPU-, disk-, and
+  network-intensive and can take several hours.
+- **Watch upstream releases** (`watch-upstream.yml`) — runs daily (02:30 UTC,
+  also manually or via `repository_dispatch` with type `check-upstream`) and
+  checks the three upstream sources:
+  1. the official Unraid releases JSON (`releases.unraid.net/json`, latest
+     public version including beta/rc),
+  2. the official kernel version + GCC from the official `bzimage`,
+  3. the latest `strongtz/i915-sriov-dkms` tag.
+
+  `scripts/detect-upstream.sh` gathers the current state of all three sources;
+  `scripts/upstream-compare.py` compares it with
+  `config/upstream-state.env` (the last successfully built combination). When
+  anything moved and every ingredient is resolvable (ich777 published the
+  kernel archive for the official kernel, the i915 commit is pinned), the
+  watch workflow dispatches `build.yml` with `target=auto-latest`, a computed
+  release tag `v<UNRAID>-<KERNEL>-i915-<REF>`, and the resolved GCC version.
+
+The auto build uses the **stock-integration mode**: it consumes the official
+`bzimage`, `bzmodules`, userspace and OpenZFS modules as-is
+(`USE_STOCK_BZIMAGE=true`, `MERGE_STOCK_MODULES=true`, `USE_STOCK_ZFS=true`,
+`REBUILD_KERNEL=false`) and only replaces `bzroot` with the four SR-IOV
+modules merged in. After a successful auto build the workflow advances
+`config/upstream-state.env` and pushes it, so the next run is a no-op until an
+upstream source moves again. A failed build leaves the state untouched and the
+next daily run retries it.
+
+To run a check manually, trigger `Watch upstream releases` from the Actions
+tab; the log shows the detected versions, the last built state, and whether a
+cloud build was dispatched.
 
 ## Boot and install
 

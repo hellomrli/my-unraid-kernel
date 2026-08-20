@@ -6,6 +6,9 @@
 /intel-mainline-tracking-v7.1-rc3/
 /thor2002ro-unraid_kernel/
 
+__pycache__/
+*.pyc
+
 /out/*.zip
 /out/*.zip.sha256
 /out/*.tar.xz
