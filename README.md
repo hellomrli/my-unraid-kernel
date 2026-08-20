@@ -1,73 +1,65 @@
-# Unraid i915 SR-IOV kernel builds
+# Unraid i915 SR-IOV 内核构建
 
-This repository publishes experimental Unraid kernels and i915 SR-IOV
-packages. The default `main` branch contains the current 6.18 build. Build
-inputs and verification notes are kept alongside the scripts and release
-documents.
+本仓库发布实验性的 Unraid 内核与 i915 SR-IOV 驱动包。`main` 分支包含当前
+6.18 内核构建。构建输入与验证说明与脚本、发布文档放在一起。
 
-## Branches
+## 分支
 
-| Branch | Contents |
+| 分支 | 内容 |
 | --- | --- |
-| `main` | Unraid 7.4.0-beta.1 with Linux `6.18.44-Unraid`, i915 SR-IOV `2026.08.12.1`, and the beta package's OpenZFS 2.4.3. |
-| `7.0` | The previous history: the Unraid 7.3.1 / Linux 7.1.1 build. |
+| `main` | Unraid 7.4.0-beta.1，Linux 内核 `6.18.44-Unraid`，i915 SR-IOV `2026.08.12.1`，沿用测试版的 OpenZFS 2.4.3。 |
+| `7.0` | 旧历史：Unraid 7.3.1 / Linux 7.1.1 构建。 |
 
-The `main` build is published to the GitHub Releases page by the automatic
-cloud build. Each release includes:
+`main` 分支的构建由**自动云编译**发布到 GitHub Releases 页面。每个发布包含：
 
-- `unRAIDServer-7.4.0-beta.1-Linux-6.18.44-i915-sriov-2026.08.12.1-x86_64.zip`:
-  the beta1 USB package with the four SR-IOV modules merged into its
-  `bzroot` (the official `bzimage`, `bzmodules`, `bzfirmware`, userspace and
-  OpenZFS modules are kept as-is).
-- `i915-sriov-202608121-6.18.44-Unraid-1.txz`: the plugin-compatible driver
-  package built with the official kernel's GCC (15.3.0) for an existing
-  6.18.44-Unraid installation.
-- SHA-256/MD5 checksums, the static verification reports, the `bzimage`, the
-  kernel configuration, the module manifests, and the recommended syslinux
-  append line.
+- `unRAIDServer-7.4.0-beta.1-Linux-6.18.44-i915-sriov-2026.08.12.1-x86_64.zip`：
+  完整 USB 安装包，四个 SR-IOV 模块已合并进其 `bzroot`（官方 `bzimage`、
+  `bzmodules`、`bzfirmware`、用户空间和 OpenZFS 模块均原样保留）。
+- `i915-sriov-202608121-6.18.44-Unraid-1.txz`：插件驱动包，使用官方内核的
+  GCC（15.3.0）编译，适用于已安装 6.18.44-Unraid 内核的系统。
+- SHA-256/MD5 校验文件、静态验证报告、`bzimage`、内核配置、模块清单和推荐
+  的 syslinux 启动参数。
 
-The earlier locally built revision-2 package `...-2.txz` was produced with
-GCC 16.2.0; the cloud pipeline follows the official kernel's compiler and
-numbers its packages `-1`.
+早前本地构建的 `...-2.txz`（修订号 2）使用 GCC 16.2.0；云编译流程跟随官方
+内核的编译器版本，包编号为 `-1`。
 
-Use the complete ZIP when replacing the Unraid beta USB contents. It keeps
-the official beta `bzimage`, `bzmodules`, `bzfirmware`, bootloader files,
-userspace and OpenZFS modules, and replaces only `bzroot` with the SR-IOV
-modules merged in. Back up the original USB files and keep a recovery boot
-entry before testing.
+## 使用完整 ZIP
 
-## Build
+替换 Unraid 测试版 USB 内容时使用完整 ZIP。它保留官方测试版的 `bzimage`、
+`bzmodules`、`bzfirmware`、引导加载文件、用户空间和 OpenZFS 模块，只把
+`bzroot` 替换为合并了 SR-IOV 模块的版本。测试前请备份原始 USB 文件并保留
+一个恢复启动项。
 
-The tracked `config/build.env` pins GCC 16.2.0 for the injected SR-IOV
-modules (a local compatibility build; the cloud pipeline instead follows the
-official kernel's GCC, currently 15.3.0). Run the complete build from this
-directory:
+## 本地构建
+
+仓库里的 `config/build.env` 固定使用 GCC 16.2.0 编译注入的 SR-IOV 模块
+（本地兼容性构建；云编译流程则跟随官方内核的 GCC，目前为 15.3.0）。在本
+目录下执行完整构建：
 
 ```bash
 scripts/all.sh
 ```
 
-The principal outputs are written to `out/`:
+主要产物输出到 `out/`：
 
 ```text
 out/unRAIDServer-7.4.0-beta.1-Linux-6.18.44-i915-sriov-2026.08.12.1-x86_64.zip
 out/i915-sriov-202608121-6.18.44-Unraid-2.txz
 ```
 
-The default beta configuration uses the official kernel image and merges the
-four SR-IOV modules into the official module tree. It does not rebuild or
-replace the OpenZFS modules already present in beta1.
+默认的测试版配置使用官方内核镜像，并把四个 SR-IOV 模块合并进官方模块树，
+不重建、不替换测试版中已有的 OpenZFS 模块。
 
-To build only the driver package for stock Unraid 7.3.2 / 6.18.38-Unraid:
+只为官方 Unraid 7.3.2 / 6.18.38-Unraid 构建驱动包：
 
 ```bash
 BUILD_ENV_FILE=config/build-6.18.38-plugin.env scripts/all.sh
 ```
 
-That mode uses the matching prebuilt kernel ABI and produces
-`out/i915-sriov-20260808-6.18.38-Unraid-1.txz`.
+该模式使用匹配的预编译内核 ABI，产物为
+`out/i915-sriov-20260808-6.18.38-Unraid-1.txz`。
 
-For the GCC 16.2.0 compatibility build used by the 2026-08-12 test release:
+2026-08-12 测试发布使用的 GCC 16.2.0 兼容性构建：
 
 ```bash
 tool_root=/home/lain/codex/i915/.toolchains/host-tools
@@ -78,84 +70,74 @@ HOSTLDFLAGS="-L/usr/lib/x86_64-linux-gnu -L$tool_root/usr/lib/x86_64-linux-gnu" 
 BUILD_ENV_FILE=config/build-gcc-16.2.0.env scripts/all.sh
 ```
 
-This produces the full 6.18.43 package and the revision-2 driver package
-`out/i915-sriov-20260808-6.18.43-Unraid-2.txz`.
+这会生成完整的 6.18.43 安装包和修订号 2 的驱动包
+`out/i915-sriov-20260808-6.18.43-Unraid-2.txz`。
 
-## GitHub Actions
+## GitHub Actions（云编译）
 
-### Cloud builds (no local compilation)
+### 云编译（不在本地编译）
 
-All compilation happens on GitHub-hosted runners inside the official GCC
-container image. The compiler follows the **official Unraid kernel package**:
-the build resolves the GCC version embedded in the official `bzimage` (via
-`scripts/extract-official-gcc.py`) and uses `max(15.3.0, official GCC)` as the
-container image tag. Manual targets are resolved the same way; an explicit
-`gcc_version` input always wins.
+所有编译都在 GitHub 托管的运行器上、官方 GCC 容器镜像内完成。编译器版本
+**以 Unraid 官方内核包为准**：构建时通过 `scripts/extract-official-gcc.py`
+读取官方 `bzimage` 中嵌入的 GCC 版本，取 `max(15.3.0, 官方 GCC)` 作为容器
+镜像标签。手动目标也按同样方式解析；显式传入 `gcc_version` 输入参数时以
+该参数为准。
 
-Two workflows are provided:
+提供两个工作流：
 
-- **Build Unraid packages** (`build.yml`) — build one of the manual targets
-  (`full-7.4.0-beta.1`, `full-6.18.44`, `full-6.18.43`, `plugin-6.18.38`) or
-  `auto-latest` for a fully parameterized build. Enable `publish_release` and
-  provide a `release_tag` to attach the outputs to a Release; the Release is
-  created automatically when the tag does not exist yet. Outputs are also kept
-  as a 14-day Actions artifact. A full build is CPU-, disk-, and
-  network-intensive and can take several hours.
-- **Watch upstream releases** (`watch-upstream.yml`) — runs daily (02:30 UTC,
-  also manually or via `repository_dispatch` with type `check-upstream`) and
-  checks the three upstream sources:
-  1. the official Unraid releases JSON (`releases.unraid.net/json`, latest
-     public version including beta/rc),
-  2. the official kernel version + GCC from the official `bzimage`,
-  3. the latest `strongtz/i915-sriov-dkms` tag.
+- **Build Unraid packages**（`build.yml`）—— 构建手动目标
+  （`full-7.4.0-beta.1`、`full-6.18.44`、`full-6.18.43`、`plugin-6.18.38`），
+  或 `auto-latest` 全参数化构建。启用 `publish_release` 并提供
+  `release_tag` 时，产物会附加到 Release；如果标签不存在会自动创建。产物
+  同时以 14 天为期的 Actions 工件保留。完整构建非常消耗 CPU、磁盘和网络，
+  可能耗时数小时。
+- **Watch upstream releases**（`watch-upstream.yml`）—— 每天（UTC 02:30，
+  也可手动触发或通过 `repository_dispatch` 类型 `check-upstream` 触发）
+  检查三个上游来源：
+  1. 官方 Unraid 版本 JSON（`releases.unraid.net/json`，取最新的公开版本，
+     含 beta/rc）；
+  2. 官方 `bzimage` 中的内核版本 + GCC 版本；
+  3. 最新的 `strongtz/i915-sriov-dkms` 标签。
 
-  `scripts/detect-upstream.sh` gathers the current state of all three sources;
-  `scripts/upstream-compare.py` compares it with
-  `config/upstream-state.env` (the last successfully built combination). When
-  anything moved and every ingredient is resolvable (ich777 published the
-  kernel archive for the official kernel, the i915 commit is pinned), the
-  watch workflow dispatches `build.yml` with `target=auto-latest`, a computed
-  release tag `v<UNRAID>-<KERNEL>-i915-<REF>`, and the resolved GCC version.
+  `scripts/detect-upstream.sh` 汇总三个来源的当前状态；
+  `scripts/upstream-compare.py` 与 `config/upstream-state.env`（上次成功构建
+  的组合）比较。当任一来源有更新、且所有原料都齐备（ich777 已为官方内核
+  发布内核源码包、i915 提交已固定）时，watch 工作流以 `target=auto-latest`
+  触发 `build.yml`，并传入计算好的发布标签 `v<UNRAID>-<KERNEL>-i915-<REF>`
+  和解析出的 GCC 版本。
 
-The auto build uses the **stock-integration mode**: it consumes the official
-`bzimage`, `bzmodules`, userspace and OpenZFS modules as-is
-(`USE_STOCK_BZIMAGE=true`, `MERGE_STOCK_MODULES=true`, `USE_STOCK_ZFS=true`,
-`REBUILD_KERNEL=false`) and only replaces `bzroot` with the four SR-IOV
-modules merged in. After a successful auto build the workflow advances
-`config/upstream-state.env` and pushes it, so the next run is a no-op until an
-upstream source moves again. A failed build leaves the state untouched and the
-next daily run retries it.
+自动构建使用**官方集成模式**：原样使用官方 `bzimage`、`bzmodules`、用户
+空间和 OpenZFS 模块（`USE_STOCK_BZIMAGE=true`、`MERGE_STOCK_MODULES=true`、
+`USE_STOCK_ZFS=true`、`REBUILD_KERNEL=false`），只把 `bzroot` 替换为合并了
+四个 SR-IOV 模块的版本。自动构建成功后，工作流会更新
+`config/upstream-state.env` 并推送，因此下次运行在任一路上游源更新之前都
+是空操作。构建失败则状态保持不变，下一次每日运行会重试。
 
-To run a check manually, trigger `Watch upstream releases` from the Actions
-tab; the log shows the detected versions, the last built state, and whether a
-cloud build was dispatched.
+手动触发检查：在 Actions 页运行 `Watch upstream releases`，日志会显示检测
+到的版本、上次构建的状态以及是否派发了云编译。
 
-### Verified end-to-end
+### 端到端验证
 
-The pipeline was exercised with a real cloud build on 2026-08-20: the watch
-parameters resolved GCC 15.3.0, the build ran inside the `gcc:15.3.0`
-container, and it published
-[release `v7.4.0-beta.1-6.18.44-Unraid-i915-2026.08.12.1`](https://github.com/hellomrli/my-unraid-kernel/releases/tag/v7.4.0-beta.1-6.18.44-Unraid-i915-2026.08.12.1)
-with the 1.2 GB USB zip, the plugin `.txz`, checksums, and verification
-reports. The upstream state file was advanced on `main` immediately after.
+2026-08-20 用一次真实的云编译验证了整条流程：watch 参数解析出 GCC 15.3.0，
+构建在 `gcc:15.3.0` 容器内运行，并发布了
+[release `v7.4.0-beta.1-6.18.44-Unraid-i915-2026.08.12.1`](https://github.com/hellomrli/my-unraid-kernel/releases/tag/v7.4.0-beta.1-6.18.44-Unraid-i915-2026.08.12.1)，
+包含 1.2 GB 的 USB ZIP、插件 `.txz`、校验文件和验证报告。上游状态文件随后
+已同步更新到 `main`。
 
-Technical note: bzroot unpacking uses `scripts/unpack-bzroot.py`
-(stdlib-only). The `unmkinitramfs` shipped in the Debian-based GCC container
-images cannot handle the official Unraid bzroot layout (an uncompressed
-`newc` cpio followed by a `zstd`-compressed cpio), so the pipeline unpacks
-with GNU `cpio` directly instead.
+技术说明：bzroot 解包使用 `scripts/unpack-bzroot.py`（仅标准库）。Debian
+系 GCC 容器镜像自带的 `unmkinitramfs` 无法处理官方 Unraid bzroot 的格式
+（未压缩 `newc` cpio + `zstd` 压缩 cpio 拼接），因此流程直接改用 GNU
+`cpio` 解包。
 
-## Boot and install
+## 启动与安装
 
-Use the i915 path and keep `xe` blacklisted:
+使用 i915 直通并屏蔽 `xe`：
 
 ```text
 intel_iommu=on i915.enable_guc=3 i915.max_vfs=7 module_blacklist=xe
 ```
 
-For the plugin package, verify the checksum and install it while i915 is not
-loaded (use the revision number from the release; `-1` is the current cloud
-build):
+插件包在 i915 未加载时校验并安装（修订号以发布为准，当前云编译为 `-1`）：
 
 ```sh
 sha256sum -c i915-sriov-202608121-6.18.44-Unraid-1.txz.sha256
@@ -163,21 +145,19 @@ upgradepkg --install-new i915-sriov-202608121-6.18.44-Unraid-1.txz
 depmod -a 6.18.44-Unraid
 ```
 
-Reboot into the matching kernel, then check:
+重启进入对应内核后检查：
 
 ```sh
 uname -r
 modinfo i915 | egrep '^(version|vermagic|origin_kernel):'
 ```
 
-Do not unload i915 from an active console or pass the physical-function GPU
-through to a VM. If initialization fails, boot the recovery entry with
-`module_blacklist=i915,xe`.
+不要在有活跃控制台时卸载 i915，也不要将物理功能 GPU 直通给虚拟机。如果
+初始化失败，用 `module_blacklist=i915,xe` 进入恢复启动项。
 
-## Validation
+## 验证
 
-Every published release passes module vermagic, compiler-marker, and
-`depmod -e` checks, both locally and in the cloud pipeline — `scripts/50-verify.sh`
-unpacks the repacked `bzroot` and verifies it before anything is uploaded.
-These are compile-time and static checks only, not a guarantee of SR-IOV
-stability on every Intel GPU.
+每个发布的版本都通过模块 vermagic、编译器标记和 `depmod -e` 检查，本地
+构建和云编译流程都会执行——`scripts/50-verify.sh` 会先解包重打包后的
+`bzroot` 并验证，之后才上传。这些只是编译期和静态检查，并不能保证在所有
+Intel GPU 上 SR-IOV 的稳定性。

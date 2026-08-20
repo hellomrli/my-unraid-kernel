@@ -1,31 +1,29 @@
 # Unraid 7.3.2 / Linux 6.18.43 / i915 SR-IOV 2026.08.08
 
-This test release is based on the official Unraid 7.3.2 USB package and uses
-the `6.18.43-Unraid` build from `ich777/unraid_kernel`.
+本测试发布基于官方 Unraid 7.3.2 USB 包，使用来自 `ich777/unraid_kernel`
+的 `6.18.43-Unraid` 构建。
 
-Included kernel-specific components:
+包含的内核相关组件：
 
-- all 1,194 in-tree modules built with the 6.18.43 Unraid configuration
-- strongtz i915 SR-IOV 2026.08.08 (`i915`, `intel_sriov_compat`, `kvmgt`, `xe`)
-- OpenZFS 2.4.3 (`spl`, `zfs`), matching Unraid 7.3.2 userspace
-- a giganode-plugin-compatible `i915-sriov-20260808-6.18.43-Unraid-1.txz`
+- 使用 6.18.43 Unraid 配置编译的全部 1,194 个内核树内模块
+- strongtz i915 SR-IOV 2026.08.08（`i915`、`intel_sriov_compat`、
+  `kvmgt`、`xe`）
+- OpenZFS 2.4.3（`spl`、`zfs`），与 Unraid 7.3.2 用户空间匹配
+- 兼容 giganode 插件的 `i915-sriov-20260808-6.18.43-Unraid-1.txz`
 
-The release build uses GCC 15.3.0. A separate GCC 16.2.0 full-kernel and
-external-module compatibility build also passed static ABI checks; it is
-recorded in `docs/gcc-16.2.0-compatibility-6.18.43.md` and is not substituted
-into this release ZIP.
+发布构建使用 GCC 15.3.0。另有一个 GCC 16.2.0 的完整内核和外部模块兼容
+性构建也通过了静态 ABI 检查，记录在
+`docs/gcc-16.2.0-compatibility-6.18.43.md`，不掺入本发布 ZIP。
 
-Use the complete zip. It replaces `bzimage` and `bzroot` together and keeps
-the official `bzmodules`, `bzfirmware`, bootloader, and config skeleton.
-Existing plugin users should replace the cached 6.18.43 driver package with
-the included 20260808 package before rebooting.
+使用完整 zip。它把 `bzimage` 和 `bzroot` 一起替换，保留官方 `bzmodules`、
+`bzfirmware`、引导加载程序和配置骨架。已有插件用户应在重启前把缓存的
+6.18.43 驱动包替换为随包提供的 20260808 版本。
 
-Suggested append parameters:
+建议的启动参数：
 
 ```text
 intel_iommu=on i915.enable_guc=3 i915.max_vfs=7 module_blacklist=xe
 ```
 
-Before testing, keep a recoverable copy of the original `bzimage` and
-`bzroot`. This is an experimental driver backport and has not been boot-tested
-on every supported Intel platform.
+测试前请保留原始 `bzimage` 和 `bzroot` 的可恢复副本。这是实验性的驱动
+移植，尚未在所有支持的 Intel 平台上做过启动测试。
