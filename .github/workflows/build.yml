@@ -140,6 +140,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The build job runs as root inside the container while checkout
+          # files may belong to another uid; gh (release attach) and the
+          # state update step call git and would hit "dubious ownership".
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           build_env="$RUNNER_TEMP/build.env"
 
           if [ "$BUILD_TARGET" = "auto-latest" ]; then
