@@ -1,4 +1,0 @@
-updates/compat/intel_sriov_compat.ko.xz
-kernel/drivers/gpu/drm/i915/i915.ko.xz
-kernel/drivers/gpu/drm/i915/kvmgt.ko.xz
-kernel/drivers/gpu/drm/xe/xe.ko.xz
