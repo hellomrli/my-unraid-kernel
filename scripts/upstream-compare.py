@@ -9,11 +9,10 @@ tracked in the repository. When the GITHUB_ENV environment variable is set
 (GitHub Actions), the NEED_BUILD / DETECTED_* / LAST_* lines are appended to
 it; a short human summary is always printed on stdout.
 
-A new build is requested when any of the three upstream sources moved past
-the last built state AND every build ingredient is resolvable right now:
-    1. the official Unraid OS version,
-    2. the official kernel release (extracted from the official bzimage),
-    3. the ich777/unraid_kernel latest release tag.
+A new build is requested when either upstream source moved past the last
+built state AND every build ingredient is resolvable right now:
+    1. the official Unraid OS version (the package base),
+    2. the ich777/unraid_kernel latest release tag (the kernel version).
 """
 
 import json
@@ -77,28 +76,26 @@ def main():
     state = load_state(sys.argv[2])
 
     new_unraid = newer(up["unraid"]["version"], state.get("LAST_UNRAID_VERSION", ""))
-    new_kernel = newer(up["official"]["kernel"], state.get("LAST_KERNEL_RELEASE", ""))
-    new_ich777 = newer(up["kernel"]["release"], state.get("LAST_ICH777_RELEASE", ""))
+    new_kernel = newer(up["kernel"]["release"], state.get("LAST_KERNEL_RELEASE", ""))
 
     # A build is only useful when every ingredient is resolvable right now:
-    # a downloadable official zip, the official kernel/gcc from its bzimage,
-    # and the matching ich777 kernel archive with checksum.
+    # a downloadable official zip (the package base), the official GCC from its
+    # bzimage (the toolchain), and the ich777 kernel archive with checksum.
     ready = bool(
         up["unraid"]["version"] and up["unraid"]["url"]
-        and up["official"]["kernel"] and up["official"]["gcc"]
+        and up["official"]["gcc"]
         and up["kernel"]["ready"] and up["kernel"]["archive_sha256"]
     )
-    need_build = (new_unraid or new_kernel or new_ich777) and ready
+    need_build = (new_unraid or new_kernel) and ready
 
     lines = [
         f"NEED_BUILD={'true' if need_build else 'false'}",
         f"DETECTED_UNRAID={up['unraid']['version']}",
-        f"DETECTED_KERNEL={up['official']['kernel']}",
-        f"DETECTED_ICH777={up['kernel']['release']}",
+        f"DETECTED_KERNEL={up['kernel']['release']}",
+        f"DETECTED_OFFICIAL_KERNEL={up['official']['kernel']}",
         f"DETECTED_OFFICIAL_GCC={up['official']['gcc']}",
         f"LAST_UNRAID={state.get('LAST_UNRAID_VERSION', '')}",
         f"LAST_KERNEL={state.get('LAST_KERNEL_RELEASE', '')}",
-        f"LAST_ICH777={state.get('LAST_ICH777_RELEASE', '')}",
         f"MIN_GCC={state.get('MIN_GCC_VERSION', '15.3.0')}",
     ]
     github_env = os.environ.get("GITHUB_ENV")
@@ -107,7 +104,7 @@ def main():
             out.write("\n".join(lines) + "\n")
 
     print(
-        f"new_unraid={new_unraid} new_kernel={new_kernel} new_ich777={new_ich777} "
+        f"new_unraid={new_unraid} new_kernel={new_kernel} "
         f"ready={ready} need_build={need_build}"
     )
 

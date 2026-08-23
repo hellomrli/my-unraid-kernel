@@ -10,12 +10,12 @@
 #
 # Sources:
 #   1. Unraid OS: official releases JSON (latest public version, including
-#      beta/rc builds). The official kernel version and the GCC version used
-#      for the official kernel are extracted from the release zip's bzimage
-#      (downloaded via HTTP Range requests, ~9 MB).
-#   2. ich777/unraid_kernel: latest GitHub release (new kernel source signal),
-#      plus the checksum asset for the *official* kernel release that the
-#      build actually consumes.
+#      beta/rc builds). This is the *package base*: its userspace, firmware
+#      and bzmodules are kept as-is. Its GCC version (extracted from the
+#      release zip's bzimage via HTTP Range requests, ~9 MB) drives the
+#      build toolchain.
+#   2. ich777/unraid_kernel: latest GitHub release. This is the *kernel
+#      version* that gets built and swapped into the official package.
 #
 # The i915 SR-IOV driver was extracted into a separate plugin package and is
 # no longer tracked or built here.
@@ -114,7 +114,8 @@ if [ -z "$UNRAID_URL" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Official kernel version + GCC toolchain, read from the official bzimage.
+# 2. Official GCC toolchain (plus kernel version for reference), read from the
+#    official bzimage.
 # ---------------------------------------------------------------------------
 OFFICIAL_KERNEL=""
 OFFICIAL_GCC=""
@@ -127,19 +128,19 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 3. ich777/unraid_kernel: latest release + checksum for the official kernel.
+# 3. ich777/unraid_kernel: latest release = the kernel version to build.
 # ---------------------------------------------------------------------------
 ICH777_TAG=""
 ICH777_ARCHIVE_URL=""
 ICH777_ARCHIVE_SHA256=""
 ICH777_READY=false
-if [ -n "$OFFICIAL_KERNEL" ]; then
-  if ich777_json="$(api_get "$ICH777_API_URL")"; then
-    ICH777_TAG="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' <<<"$ich777_json")"
-  fi
-  ICH777_ARCHIVE_URL="https://github.com/ich777/unraid_kernel/releases/download/${OFFICIAL_KERNEL}/linux-${OFFICIAL_KERNEL}.tar.xz"
+if ich777_json="$(api_get "$ICH777_API_URL")"; then
+  ICH777_TAG="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' <<<"$ich777_json")"
+fi
+if [ -n "$ICH777_TAG" ]; then
+  ICH777_ARCHIVE_URL="https://github.com/ich777/unraid_kernel/releases/download/${ICH777_TAG}/linux-${ICH777_TAG}.tar.xz"
   if sha_line="$(curl -fsSL --max-time 60 -A "$UA" \
-        "https://github.com/ich777/unraid_kernel/releases/download/${OFFICIAL_KERNEL}/linux-${OFFICIAL_KERNEL}.tar.xz.sha256" 2>/dev/null)"; then
+        "https://github.com/ich777/unraid_kernel/releases/download/${ICH777_TAG}/linux-${ICH777_TAG}.tar.xz.sha256" 2>/dev/null)"; then
     ICH777_ARCHIVE_SHA256="$(awk '{print $1}' <<<"$sha_line")"
     [ -n "$ICH777_ARCHIVE_SHA256" ] && ICH777_READY=true
   fi
