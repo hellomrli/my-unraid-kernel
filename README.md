@@ -1,8 +1,9 @@
 # Unraid 内核自动构建
 
-本仓库实现 Unraid 内核的自动重建与发布：每日检测官方 Unraid 与
+本仓库以官方 Unraid 包为基础、只替换内核版本：每日检测官方 Unraid 与
 [ich777/unraid_kernel](https://github.com/ich777/unraid_kernel) 上游更新，
-有更新即自动触发 GitHub 云编译并发布 Release，全程无需本地编译。
+有更新即用 ich777 的最新内核重新打包官方镜像，自动触发 GitHub 云编译并
+发布 Release，全程无需本地编译。
 
 > i915 SR-IOV 驱动已单独提取为插件包，本仓库不再构建或追踪它。
 
@@ -15,7 +16,7 @@
 | 产物 | 用途 |
 | --- | --- |
 | `unRAIDServer-...-x86_64.zip` | 完整 USB 安装包，替换官方包中的 `bzimage` 与 `bzroot`，其余文件原样保留 |
-| `bzimage-<KERNEL>` / `bzroot-<KERNEL>` | 用官方 GCC 工具链从源码重建的内核与模块树 |
+| `bzimage-<KERNEL>` / `bzroot-<KERNEL>` | ich777 内核源码用官方 GCC 工具链编译出的内核与模块树 |
 | `sha256sums-<KERNEL>.txt` | 上述产物的 SHA-256 校验和 |
 | `verification-<KERNEL>.txt` | 静态验证报告（vermagic、编译器、ZFS 版本、模块数等） |
 
@@ -41,20 +42,22 @@ modinfo zfs | egrep '^(version|vermagic):'
 每日 02:30 UTC，`Watch upstream releases` 工作流检测两个上游源：
 
 1. **Unraid 官方**：`releases.unraid.net/json`（最新公开版本，含 beta/rc），
-   并从官方 `bzimage` 提取内核版本与 GCC 版本（`extract-official-gcc.py`）
-2. **ich777/unraid_kernel**：最新 GitHub Release（内核源码包信号），
-   以及构建实际消费的官方内核源码包的校验和
+   作为**包的底子**——用户空间、固件、`bzmodules` 等保持官方原样；同时从
+   官方 `bzimage` 提取 GCC 版本作为编译工具链（`extract-official-gcc.py`）
+2. **ich777/unraid_kernel**：最新 GitHub Release，作为**要替换进去的内核
+   版本**（可能比官方自带内核更新）
 
-任一源有更新且原料齐备（官方 zip 可下载、官方内核/GCC 可提取、ich777
-已发布对应内核源码包）时，自动以 `auto-latest` 目标触发云编译。构建成功
-即发布 Release 并回写状态文件（`config/upstream-state.env`）；失败则状态
-不变，次日重试。已运行/排队中的构建不会重复触发。
+任一源有更新且原料齐备（官方 zip 可下载、官方 GCC 可提取、ich777 已发布
+最新内核源码包）时，自动以 `auto-latest` 目标触发云编译。构建成功即发布
+Release 并回写状态文件（`config/upstream-state.env`）；失败则状态不变，
+次日重试。已运行/排队中的构建不会重复触发。
 
 **设计原则**：
 
+- **官方为底、只换内核**：保留官方 `bzmodules`/用户空间/固件字节级一致，
+  仅把 `bzimage` 与内核模块树替换为 ich777 的内核版本
 - **GCC 以官方为准**：容器镜像版本取 `max(15.3.0, 官方内核 GCC)`，官方升级即自动跟随
-- **完整重建**：用官方 GCC 从源码重建内核（bzImage + 全部树内模块）与
-  OpenZFS，再打包为完整 USB 镜像
+- **OpenZFS 随内核重建**：新内核版本的 ZFS 模块重新编译，与替换后的内核匹配
 - **全自动发布**：Release 标签 `v<UNRAID>-<KERNEL>` 不存在时自动创建
 
 手动触发：Actions 页运行 `Watch upstream releases`（日志会显示检测结果与

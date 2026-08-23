@@ -180,13 +180,11 @@ jobs:
           kernel_release="$(sed -n 's/^KERNEL_RELEASE=//p' "$build_env")"
           target_kernel_version="$(sed -n 's/^TARGET_KERNEL_VERSION=//p' "$build_env")"
           unraid_version="$(sed -n 's/^UNRAID_VERSION=//p' "$build_env")"
-          ich777_release="$(sed -n 's/^ICH777_RELEASE=//p' "$build_env")"
           printf 'BUILD_ENV_FILE=%s\n' "$build_env" >> "$GITHUB_ENV"
           printf 'EXPECTED_CC_VERSION=%s\n' "$compiler_version" >> "$GITHUB_ENV"
           printf 'KERNEL_RELEASE=%s\n' "$kernel_release" >> "$GITHUB_ENV"
           printf 'TARGET_KERNEL_VERSION=%s\n' "$target_kernel_version" >> "$GITHUB_ENV"
           printf 'UNRAID_VERSION=%s\n' "$unraid_version" >> "$GITHUB_ENV"
-          printf 'ICH777_RELEASE=%s\n' "$ich777_release" >> "$GITHUB_ENV"
           printf 'Resolved build configuration:\n'
           sed -n '1,42p' "$build_env"
 
@@ -271,7 +269,7 @@ jobs:
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
               --title "Unraid ${UNRAID_VERSION} / kernel ${KERNEL_RELEASE}" \
-              --notes "Automated Unraid kernel rebuild for Unraid ${UNRAID_VERSION} with the ${KERNEL_RELEASE} kernel from ich777/unraid_kernel." >/dev/null
+              --notes "Official Unraid ${UNRAID_VERSION} package with the ${KERNEL_RELEASE} kernel from ich777/unraid_kernel swapped in." >/dev/null
           fi
           gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
 
@@ -287,7 +285,6 @@ jobs:
           # auto build.
           LAST_UNRAID_VERSION=${UNRAID_VERSION}
           LAST_KERNEL_RELEASE=${KERNEL_RELEASE}
-          LAST_ICH777_RELEASE=${ICH777_RELEASE}
 
           # GCC toolchain floor. Builds use max(MIN_GCC_VERSION, official kernel GCC).
           MIN_GCC_VERSION=15.3.0
@@ -297,5 +294,5 @@ jobs:
           git add config/upstream-state.env
           git commit -m "ci: mark Unraid ${UNRAID_VERSION} / ${KERNEL_RELEASE} as built"
           git push origin "HEAD:${GITHUB_REF_NAME}"
-          printf 'Advanced upstream state to %s / %s / ich777 %s\n' \
-            "$UNRAID_VERSION" "$KERNEL_RELEASE" "$ICH777_RELEASE"
+          printf 'Advanced upstream state to %s / %s\n' \
+            "$UNRAID_VERSION" "$KERNEL_RELEASE"

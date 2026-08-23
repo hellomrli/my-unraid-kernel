@@ -1,12 +1,14 @@
 name: Watch upstream releases
 
-# Daily check of the two upstream sources that drive a new kernel release:
+# Daily check of the two upstream sources that drive a new release:
 #   1. Unraid OS (official releases JSON, latest public version incl. beta/rc)
-#   2. ich777/unraid_kernel (latest kernel source release)
-# When any of them moved past the last built state, the workflow dispatches
-# the cloud build (build.yml, target auto-latest) which publishes a new
-# release. State advances only after a successful build, so a failed build is
-# retried by the next run.
+#      — the package base (userspace/firmware).
+#   2. ich777/unraid_kernel (latest kernel release) — the kernel version that
+#      is built and swapped into the official package.
+# When either moved past the last built state, the workflow dispatches the
+# cloud build (build.yml, target auto-latest) which publishes a new release.
+# State advances only after a successful build, so a failed build is retried
+# by the next run.
 #
 # The i915 SR-IOV driver was extracted into a separate plugin package and is
 # no longer tracked here.
@@ -54,8 +56,8 @@ jobs:
 
       - name: Summary
         run: |
-          echo "Detected : Unraid $DETECTED_UNRAID / kernel $DETECTED_KERNEL / ich777 $DETECTED_ICH777 / official GCC $DETECTED_OFFICIAL_GCC"
-          echo "Last built: Unraid $LAST_UNRAID / kernel $LAST_KERNEL / ich777 $LAST_ICH777"
+          echo "Detected : Unraid $DETECTED_UNRAID (official kernel $DETECTED_OFFICIAL_KERNEL) / ich777 kernel $DETECTED_KERNEL / official GCC $DETECTED_OFFICIAL_GCC"
+          echo "Last built: Unraid $LAST_UNRAID / kernel $LAST_KERNEL"
           echo "Need build: $NEED_BUILD"
           if [ "$NEED_BUILD" = "true" ]; then
             echo "::warning::Upstream moved; dispatching a cloud build."
@@ -83,10 +85,9 @@ jobs:
           UNRAID_VERSION="$(jq -r .unraid.version <<<"$D")"
           UNRAID_URL="$(jq -r .unraid.url <<<"$D")"
           UNRAID_SHA="$(jq -r .unraid.sha256 <<<"$D")"
-          KERNEL_RELEASE="$(jq -r .official.kernel <<<"$D")"
+          KERNEL_RELEASE="$(jq -r .kernel.release <<<"$D")"
           KERNEL_ARCHIVE_URL="$(jq -r .kernel.archive_url <<<"$D")"
           KERNEL_SHA="$(jq -r .kernel.archive_sha256 <<<"$D")"
-          ICH777_RELEASE="$(jq -r .kernel.release <<<"$D")"
           OFFICIAL_GCC="$(jq -r .official.gcc <<<"$D")"
 
           # GCC toolchain: max(MIN_GCC_VERSION, official kernel GCC).
@@ -96,11 +97,9 @@ jobs:
           jq -n \
             --arg uv "$UNRAID_VERSION" --arg uz "$UNRAID_URL" --arg us "$UNRAID_SHA" \
             --arg kr "$KERNEL_RELEASE" --arg ka "$KERNEL_ARCHIVE_URL" --arg ks "$KERNEL_SHA" \
-            --arg ir "$ICH777_RELEASE" \
             --arg gv "$GCC_VERSION" --arg og "$OFFICIAL_GCC" --arg rt "$RELEASE_TAG" \
             '{unraid_version:$uv, unraid_zip_url:$uz, unraid_zip_sha256:$us,
               kernel_release:$kr, kernel_archive_url:$ka, kernel_archive_sha256:$ks,
-              ich777_release:$ir,
               gcc_version:$gv, official_gcc:$og, release_tag:$rt}' > params.json
 
           echo "=== build parameters ==="
