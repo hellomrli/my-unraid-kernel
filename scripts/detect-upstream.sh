@@ -5,8 +5,7 @@
 #   {
 #     "unraid":   { "version", "url", "sha256", "branch", "size" },
 #     "official": { "kernel", "gcc", "error" },
-#     "kernel":   { "release", "archive_url", "archive_sha256", "ready" },
-#     "i915":     { "ref", "commit" }
+#     "kernel":   { "release", "archive_url", "archive_sha256", "ready" }
 #   }
 #
 # Sources:
@@ -14,9 +13,12 @@
 #      beta/rc builds). The official kernel version and the GCC version used
 #      for the official kernel are extracted from the release zip's bzimage
 #      (downloaded via HTTP Range requests, ~9 MB).
-#   2. ich777/unraid_kernel: latest GitHub release, plus the checksum asset
-#      for the *official* kernel release that the build actually consumes.
-#   3. strongtz/i915-sriov-dkms: latest GitHub release tag and its commit.
+#   2. ich777/unraid_kernel: latest GitHub release (new kernel source signal),
+#      plus the checksum asset for the *official* kernel release that the
+#      build actually consumes.
+#
+# The i915 SR-IOV driver was extracted into a separate plugin package and is
+# no longer tracked or built here.
 #
 # Environment:
 #   GITHUB_TOKEN  optional, used to authenticate GitHub API requests
@@ -27,7 +29,6 @@ UA="Mozilla/5.0 (compatible; UnraidUpstreamWatcher/1.0; +https://github.com/hell
 
 UNRAID_RELEASES_URL="${UNRAID_RELEASES_URL:-https://releases.unraid.net/json?includePublic=1}"
 ICH777_API_URL="${ICH777_API_URL:-https://api.github.com/repos/ich777/unraid_kernel/releases/latest}"
-STRONGTZ_API_URL="${STRONGTZ_API_URL:-https://api.github.com/repos/strongtz/i915-sriov-dkms/releases/latest}"
 
 api_get() {
   local url="$1"
@@ -145,19 +146,6 @@ if [ -n "$OFFICIAL_KERNEL" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 4. strongtz/i915-sriov-dkms: latest release tag + commit.
-# ---------------------------------------------------------------------------
-I915_REF=""
-I915_COMMIT=""
-if strongtz_json="$(api_get "$STRONGTZ_API_URL")"; then
-  I915_REF="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' <<<"$strongtz_json")"
-  if [ -n "$I915_REF" ]; then
-    I915_COMMIT="$(git ls-remote https://github.com/strongtz/i915-sriov-dkms.git \
-      "refs/tags/${I915_REF}^{}" 2>/dev/null | awk '{print $1}')"
-  fi
-fi
-
-# ---------------------------------------------------------------------------
 # Emit the result as JSON.
 # ---------------------------------------------------------------------------
 UNRAID_VERSION="$UNRAID_VERSION" UNRAID_URL="$UNRAID_URL" \
@@ -166,7 +154,7 @@ UNRAID_SIZE="$UNRAID_SIZE" OFFICIAL_KERNEL="$OFFICIAL_KERNEL" \
 OFFICIAL_GCC="$OFFICIAL_GCC" OFFICIAL_ERROR="$OFFICIAL_ERROR" \
 ICH777_TAG="$ICH777_TAG" ICH777_ARCHIVE_URL="$ICH777_ARCHIVE_URL" \
 ICH777_ARCHIVE_SHA256="$ICH777_ARCHIVE_SHA256" ICH777_READY="$ICH777_READY" \
-I915_REF="$I915_REF" I915_COMMIT="$I915_COMMIT" python3 - <<'PYEOF'
+python3 - <<'PYEOF'
 import json, os
 
 print(json.dumps({
@@ -187,10 +175,6 @@ print(json.dumps({
         "archive_url": os.environ["ICH777_ARCHIVE_URL"],
         "archive_sha256": os.environ["ICH777_ARCHIVE_SHA256"],
         "ready": os.environ["ICH777_READY"] == "true",
-    },
-    "i915": {
-        "ref": os.environ["I915_REF"],
-        "commit": os.environ["I915_COMMIT"],
     },
 }, indent=2))
 PYEOF

@@ -1,10 +1,7 @@
 /.cache/
 /build/
 /downloads/
-/i915-sriov-dkms/
 /ich777-unraid_kernel/
-/intel-mainline-tracking-v7.1-rc3/
-/thor2002ro-unraid_kernel/
 
 __pycache__/
 *.pyc

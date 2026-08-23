@@ -7,13 +7,12 @@ on:
         description: Build target
         required: true
         type: choice
-        default: full-7.4.0-beta.1
+        default: auto-latest
         options:
+          - auto-latest
           - full-7.4.0-beta.1
           - full-6.18.44
           - full-6.18.43
-          - plugin-6.18.38
-          - auto-latest
       publish_release:
         description: Attach successful outputs to a GitHub Release
         required: true
@@ -78,9 +77,6 @@ jobs:
                 ;;
               full-6.18.43)
                 source_env=config/build-6.18.43.env
-                ;;
-              plugin-6.18.38)
-                source_env=config/build-6.18.38-plugin.env
                 ;;
               *)
                 printf 'Unsupported target: %s\n' "$BUILD_TARGET" >&2
@@ -164,9 +160,6 @@ jobs:
               full-6.18.43)
                 source_env=config/build-6.18.43.env
                 ;;
-              plugin-6.18.38)
-                source_env=config/build-6.18.38-plugin.env
-                ;;
               *)
                 printf 'Unsupported target: %s\n' "$BUILD_TARGET" >&2
                 exit 2
@@ -187,16 +180,13 @@ jobs:
           kernel_release="$(sed -n 's/^KERNEL_RELEASE=//p' "$build_env")"
           target_kernel_version="$(sed -n 's/^TARGET_KERNEL_VERSION=//p' "$build_env")"
           unraid_version="$(sed -n 's/^UNRAID_VERSION=//p' "$build_env")"
-          i915_sriov_ref="$(sed -n 's/^I915_SRIOV_REF=//p' "$build_env")"
-          package_build="$(sed -n 's/^PACKAGE_BUILD=//p' "$build_env")"
-          package_build="${package_build:-1}"
+          ich777_release="$(sed -n 's/^ICH777_RELEASE=//p' "$build_env")"
           printf 'BUILD_ENV_FILE=%s\n' "$build_env" >> "$GITHUB_ENV"
           printf 'EXPECTED_CC_VERSION=%s\n' "$compiler_version" >> "$GITHUB_ENV"
           printf 'KERNEL_RELEASE=%s\n' "$kernel_release" >> "$GITHUB_ENV"
           printf 'TARGET_KERNEL_VERSION=%s\n' "$target_kernel_version" >> "$GITHUB_ENV"
           printf 'UNRAID_VERSION=%s\n' "$unraid_version" >> "$GITHUB_ENV"
-          printf 'I915_SRIOV_REF=%s\n' "$i915_sriov_ref" >> "$GITHUB_ENV"
-          printf 'PACKAGE_BUILD=%s\n' "$package_build" >> "$GITHUB_ENV"
+          printf 'ICH777_RELEASE=%s\n' "$ich777_release" >> "$GITHUB_ENV"
           printf 'Resolved build configuration:\n'
           sed -n '1,42p' "$build_env"
 
@@ -219,29 +209,17 @@ jobs:
             fi
           )
 
-          package_version="${I915_SRIOV_REF//./}"
-          plugin_base="i915-sriov-${package_version}-${KERNEL_RELEASE}-${PACKAGE_BUILD}.txz"
+          zip_base="unRAIDServer-${UNRAID_VERSION}-Linux-${TARGET_KERNEL_VERSION}-x86_64.zip"
           artifacts=(
-            "out/$plugin_base"
-            "out/$plugin_base.sha256"
-            "out/$plugin_base.md5"
-            out/i915-sriov-installed-modules.txt
-            "out/verification-i915-$KERNEL_RELEASE.txt"
+            "out/$zip_base"
+            "out/$zip_base.sha256"
+            "out/bzimage-$KERNEL_RELEASE"
+            "out/bzroot-$KERNEL_RELEASE"
+            "out/bzmodules"
+            "out/sha256sums-$KERNEL_RELEASE.txt"
+            "out/verification-$KERNEL_RELEASE.txt"
           )
-
-          if [[ "$BUILD_TARGET" == full-* || "$BUILD_TARGET" == auto-latest ]]; then
-            zip_base="unRAIDServer-${UNRAID_VERSION}-Linux-${TARGET_KERNEL_VERSION}-i915-sriov-${I915_SRIOV_REF}-x86_64.zip"
-            artifacts+=(
-              "out/$zip_base"
-              "out/$zip_base.sha256"
-              "out/bzimage-$KERNEL_RELEASE"
-              "out/sha256sums-$KERNEL_RELEASE.txt"
-              out/syslinux-append-i915-sriov.txt
-              "out/verification-$KERNEL_RELEASE.txt"
-            )
-          fi
-          # Optional reference files, produced only by the rebuild modes
-          # (REBUILD_KERNEL=true / USE_STOCK_ZFS=false).
+          # Optional reference files, produced only by the rebuild modes.
           for optional_artifact in \
             out/zfs-installed-modules.txt \
             "config/generated-linux-$KERNEL_RELEASE.config"
@@ -292,8 +270,8 @@ jobs:
           }
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
-              --title "Unraid ${UNRAID_VERSION} / kernel ${KERNEL_RELEASE} / i915 SR-IOV ${I915_SRIOV_REF}" \
-              --notes "Automated i915 SR-IOV build for Unraid ${UNRAID_VERSION} with the ${KERNEL_RELEASE} kernel and strongtz i915-sriov-dkms ${I915_SRIOV_REF}." >/dev/null
+              --title "Unraid ${UNRAID_VERSION} / kernel ${KERNEL_RELEASE}" \
+              --notes "Automated Unraid kernel rebuild for Unraid ${UNRAID_VERSION} with the ${KERNEL_RELEASE} kernel from ich777/unraid_kernel." >/dev/null
           fi
           gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
 
@@ -309,7 +287,7 @@ jobs:
           # auto build.
           LAST_UNRAID_VERSION=${UNRAID_VERSION}
           LAST_KERNEL_RELEASE=${KERNEL_RELEASE}
-          LAST_I915_SRIOV_REF=${I915_SRIOV_REF}
+          LAST_ICH777_RELEASE=${ICH777_RELEASE}
 
           # GCC toolchain floor. Builds use max(MIN_GCC_VERSION, official kernel GCC).
           MIN_GCC_VERSION=15.3.0
@@ -317,7 +295,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add config/upstream-state.env
-          git commit -m "ci: mark Unraid ${UNRAID_VERSION} / ${KERNEL_RELEASE} / i915 ${I915_SRIOV_REF} as built"
+          git commit -m "ci: mark Unraid ${UNRAID_VERSION} / ${KERNEL_RELEASE} as built"
           git push origin "HEAD:${GITHUB_REF_NAME}"
-          printf 'Advanced upstream state to %s / %s / %s\n' \
-            "$UNRAID_VERSION" "$KERNEL_RELEASE" "$I915_SRIOV_REF"
+          printf 'Advanced upstream state to %s / %s / ich777 %s\n' \
+            "$UNRAID_VERSION" "$KERNEL_RELEASE" "$ICH777_RELEASE"

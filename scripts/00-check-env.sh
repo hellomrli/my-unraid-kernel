@@ -7,20 +7,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 required=(
   bash
+  bc
+  bison
+  cpio
   curl
   depmod
+  flex
   git
   make
+  python3
   readelf
   sha256sum
   strings
   tar
+  unzip
   xz
+  zip
+  zstd
 )
-
-if [ "$PLUGIN_ONLY" != "true" ]; then
-  required+=(bc bison cpio flex python3 unzip zip zstd)
-fi
 
 missing=0
 for cmd in "${required[@]}"; do
@@ -60,7 +64,7 @@ log "Environment looks usable"
 log "cc: $CC ($("$CC" -dumpfullversion -dumpversion))"
 log "hostcc: $HOSTCC ($("$HOSTCC" -dumpfullversion -dumpversion))"
 log "hostcxx: $HOSTCXX ($("$HOSTCXX" -dumpfullversion -dumpversion))"
-if [ "$PLUGIN_ONLY" != "true" ] && ! printf '#include <gelf.h>\n' | "$HOSTCC" $HOSTCFLAGS -x c -E - >/dev/null 2>&1; then
+if ! printf '#include <gelf.h>\n' | "$HOSTCC" $HOSTCFLAGS -x c -E - >/dev/null 2>&1; then
   die "gelf.h is unavailable; install libelf-dev or set HOSTCFLAGS"
 fi
 if [ -n "$EXPECTED_CC_VERSION" ]; then

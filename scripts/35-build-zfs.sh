@@ -5,11 +5,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=common.sh
 . "$SCRIPT_DIR/common.sh"
 
-if [ "$USE_STOCK_ZFS" = "true" ]; then
-  log "Using OpenZFS modules from the official Unraid package"
-  exit 0
-fi
-
 need_cmd depmod
 need_cmd make
 need_cmd tar
