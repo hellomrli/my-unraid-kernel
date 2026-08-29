@@ -41,6 +41,15 @@ line("KERNEL_ARCHIVE_URL", params["kernel_archive_url"])
 line("KERNEL_ARCHIVE_SHA256", params["kernel_archive_sha256"])
 line("UNRAID_ZIP_URL", params["unraid_zip_url"])
 line("UNRAID_ZIP_SHA256", params.get("unraid_zip_sha256", ""))
+if not params.get("unraid_zip_sha256"):
+    # Prereleases ship without a checksum in the releases JSON and the CDN
+    # exposes no sibling .sha256; 50-verify.sh still anchors the package by
+    # comparing bzmodules byte-for-byte against this zip.
+    print(
+        "WARNING: unraid_zip_sha256 is empty; "
+        "the official zip will not be checksum-verified",
+        file=sys.stderr,
+    )
 line("ZFS_VERSION", "2.4.3")
 line("ZFS_TARBALL_URL",
      "https://github.com/openzfs/zfs/releases/download/zfs-2.4.3/zfs-2.4.3.tar.gz")

@@ -47,7 +47,7 @@ unraid_json="$(curl -fsSL --max-time 60 -A "$UA" "$UNRAID_RELEASES_URL")"
 
 IFS='|' read -r UNRAID_VERSION UNRAID_URL UNRAID_SHA256 UNRAID_CHANGELOG \
         UNRAID_BRANCH UNRAID_SIZE <<< "$(UNRAID_JSON="$unraid_json" python3 - <<'PYEOF'
-import json, os, re
+import json, os, re, sys
 from functools import cmp_to_key
 
 data = json.loads(os.environ["UNRAID_JSON"])
@@ -120,7 +120,17 @@ fi
 OFFICIAL_KERNEL=""
 OFFICIAL_GCC=""
 OFFICIAL_ERROR=""
-if gcc_out="$("$SCRIPT_DIR/extract-official-gcc.py" --url "$UNRAID_URL" 2>/dev/null)"; then
+# The range-request extraction spans several HTTP calls; a single transient
+# failure would otherwise skip a whole build day, so retry once.
+gcc_out=""
+for _attempt in 1 2; do
+  if gcc_out="$("$SCRIPT_DIR/extract-official-gcc.py" --url "$UNRAID_URL" 2>/dev/null)"; then
+    break
+  fi
+  gcc_out=""
+  sleep 3
+done
+if [ -n "$gcc_out" ]; then
   OFFICIAL_KERNEL="$(sed -n 's/^kernel=//p' <<<"$gcc_out")"
   OFFICIAL_GCC="$(sed -n 's/^gcc=//p' <<<"$gcc_out")"
 else
