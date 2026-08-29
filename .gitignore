@@ -2,6 +2,7 @@
 /build/
 /downloads/
 /ich777-unraid_kernel/
+/logs/
 
 __pycache__/
 *.pyc
