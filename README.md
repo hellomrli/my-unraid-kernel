@@ -77,5 +77,20 @@ BUILD_ENV_FILE=config/build-6.18.44.env scripts/all.sh
 每个发布在上传前均通过静态验证（`scripts/50-verify.sh`）：模块 vermagic、
 编译器标记、`depmod -e` 无未解析符号、ZIP 完整性、bzmodules 逐字节一致性。
 
+已知限制：`bzmodules`（挂载在 `/usr` 的 squashfs）保持官方包原样，其中
+`/usr/src/linux-<官方内核版本>` 与替换后的内核版本不一致，因此新内核的
+`/lib/modules/<版本>/{build,source}` 链接在 NAS 上是悬空的——在机器上
+直接编译树外模块（如 NVIDIA、r8125 等源码构建型插件）会缺少匹配的内核
+头文件。需要时把 ich777 Release 里对应的 `linux-<版本>.tar.xz` 解压到
+可写目录（如 `/opt/src/linux-<版本>-Unraid`）并重定向这两个链接：
+
+```sh
+ln -sfn /opt/src/linux-<版本>-Unraid "/lib/modules/<版本>-Unraid/build"
+ln -sfn /opt/src/linux-<版本>-Unraid "/lib/modules/<版本>-Unraid/source"
+```
+
+`bzmodules` 本身不随 Release 分发：它与官方包逐字节相同（50-verify 会
+校验），直接沿用官方文件即可，其校验和包含在 `sha256sums-<KERNEL>.txt` 中。
+
 以上为编译期与静态 ABI 检查，**不保证**运行时稳定性。测试前请备份原 USB
 文件并保留恢复启动项。
