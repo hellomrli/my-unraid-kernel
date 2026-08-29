@@ -122,10 +122,6 @@ def read_zip_member(url, member_name, total_size):
 
 def decompress_bzimage(payload: bytes):
     """Return the decompressed vmlinux bytes, trying common kernel formats."""
-    candidates = []
-
-def decompress_bzimage(payload: bytes):
-    """Return the decompressed vmlinux bytes, trying common kernel formats."""
 
     def try_decompress(chunk, kind):
         try:
@@ -178,12 +174,10 @@ def main():
             payload = zf.read("bzimage")
     else:
         # Determine the total size with a tiny Range request instead of HEAD;
-        # some CDNs are stricter about HEAD but still honor Range.
-        probe = http_get(args.url, headers={"Range": "bytes=0-0"})
+        # some CDNs are stricter about HEAD but still honor Range. Do not read
+        # the body: a server that ignores Range would otherwise be pulled in
+        # full for no benefit.
         total = None
-        # urllib does not expose the Content-Range header directly on the
-        # response object, so re-request with curl-style semantics via a
-        # second approach: use a HEAD fallback wrapped in try.
         try:
             req = urllib.request.Request(
                 args.url,
@@ -195,7 +189,9 @@ def main():
         except Exception:
             total = None
         if not total:
-            raise RuntimeError("zip URL did not report Content-Length")
+            raise RuntimeError(
+                "zip URL did not report a total size via Content-Range; "
+                "the server may not support range requests")
         payload = read_zip_member(args.url, "bzimage", total)
 
     vmlinux = decompress_bzimage(payload)
