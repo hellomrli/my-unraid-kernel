@@ -31,7 +31,12 @@ mkdir -p "$VERIFY_DIR"
 python3 "$SCRIPT_DIR/unpack-bzroot.py" "$OUT_DIR/bzroot-$KERNEL_RELEASE" "$VERIFY_DIR"
 
 MODULE_DIR="$VERIFY_DIR/lib/modules/$KERNEL_RELEASE"
-[ -d "$MODULE_DIR" ] || die "Repacked bzroot does not contain $KERNEL_RELEASE"
+# The repacked bzroot must contain exactly one module tree, named for the
+# target kernel release; a leftover tree from the official package would mean
+# the wipe in 40-package-unraid.sh missed something.
+MODULE_TREES="$(find "$VERIFY_DIR/lib/modules" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | LC_ALL=C sort)"
+[ "$MODULE_TREES" = "$KERNEL_RELEASE" ] || \
+  die "Repacked bzroot module trees mismatch (expected only $KERNEL_RELEASE): ${MODULE_TREES:-none}"
 
 verify_module() {
   local path="$1"

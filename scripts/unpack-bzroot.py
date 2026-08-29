@@ -60,6 +60,11 @@ def main():
         early, main = data[:zpos], data[zpos:]
         extract(early, ["cat"], dst)
         extract(main, ["zstd", "-dc", "-q"], dst)
+    elif data[:4] == ZSTD_MAGIC:
+        sys.exit(
+            "unpack-bzroot: whole-file zstd initramfs is not supported; "
+            "expected an uncompressed early cpio followed by a zstd member"
+        )
     elif data[:2] == GZIP_MAGIC:
         # Legacy/unexpected whole-file gzip archive.
         extract(data, ["gzip", "-dc"], dst)
