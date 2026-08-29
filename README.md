@@ -5,7 +5,9 @@
 有更新即用 ich777 的最新内核重新打包官方镜像，自动触发 GitHub 云编译并
 发布 Release，全程无需本地编译。
 
-> i915 SR-IOV 驱动已单独提取为插件包，本仓库不再构建或追踪它。
+> i915 SR-IOV 驱动由独立仓库
+> [hellomrli/my-i915-sriov-driver](https://github.com/hellomrli/my-i915-sriov-driver)
+> 以插件包形式构建与发布，本仓库不再构建或追踪它。
 
 ## 最新发布
 
