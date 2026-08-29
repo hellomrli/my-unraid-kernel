@@ -41,6 +41,11 @@ jobs:
       - name: Detect upstream versions
         id: detect
         shell: bash
+        env:
+          # detect-upstream.sh authenticates GitHub API calls with it when
+          # set; anonymous requests share runner egress IPs and can hit the
+          # 60 req/h rate limit.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           bash scripts/detect-upstream.sh > upstream.json

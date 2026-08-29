@@ -48,16 +48,29 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       gcc_version: ${{ steps.resolve.outputs.gcc_version }}
+    env:
+      BUILD_TARGET: ${{ inputs.target }}
+      GCC_VERSION_INPUT: ${{ inputs.gcc_version }}
+      AUTO_PARAMS: ${{ inputs.auto_params }}
+      PUBLISH_RELEASE: ${{ inputs.publish_release }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
     steps:
       - name: Check out source
         uses: actions/checkout@v7.0.1
 
+      # Fail before the multi-hour build starts instead of after it.
+      - name: Validate inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$PUBLISH_RELEASE" = "true" ] && [ -z "$RELEASE_TAG" ]; then
+            printf 'release_tag is required when publish_release is enabled\n' >&2
+            exit 2
+          fi
+
       - name: Resolve GCC version
         id: resolve
         shell: bash
-        env:
-          BUILD_TARGET: ${{ inputs.target }}
-          GCC_VERSION_INPUT: ${{ inputs.gcc_version }}
         run: |
           set -euo pipefail
           min_gcc=15.3.0
@@ -66,7 +79,14 @@ jobs:
           if [ -n "$GCC_VERSION_INPUT" ]; then
             gcc_version="$GCC_VERSION_INPUT"
           elif [ "$BUILD_TARGET" = "auto-latest" ]; then
-            gcc_version="$min_gcc"
+            # A manual dispatch may carry the watch workflow's parameters;
+            # prefer the official kernel GCC it detected over the floor.
+            official_gcc="$(printf '%s' "$AUTO_PARAMS" | jq -r '.official_gcc // empty' 2>/dev/null || true)"
+            if [ -n "$official_gcc" ]; then
+              gcc_version="$official_gcc"
+            else
+              gcc_version="$min_gcc"
+            fi
           else
             case "$BUILD_TARGET" in
               full-7.4.0-beta.1)
@@ -213,7 +233,10 @@ jobs:
             "out/$zip_base.sha256"
             "out/bzimage-$KERNEL_RELEASE"
             "out/bzroot-$KERNEL_RELEASE"
-            "out/bzmodules"
+            # out/bzmodules is intentionally not uploaded: it is byte-identical
+            # to the file in the official Unraid package (verified by
+            # 50-verify.sh), so users keep the one they already have. Its
+            # checksum still ships in sha256sums-*.txt for cross-checking.
             "out/sha256sums-$KERNEL_RELEASE.txt"
             "out/verification-$KERNEL_RELEASE.txt"
           )
