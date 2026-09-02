@@ -24,13 +24,28 @@
 
 ## 快速使用
 
-替换 Unraid USB 中的 `bzimage` 与 `bzroot`（`bzmodules` 等保持官方原样），
-然后按官方方式启动：
+替换 USB 中的 `bzimage` 与 `bzroot`，**并同步更新配套的
+`bzimage.sha256` / `bzroot.sha256`**（`bzmodules`、`bzfirmware`、
+`bzroot-gui` 等保持官方原样）。Unraid 启动时用 `.sha256` 旁路文件逐一
+校验引导文件（`rc.S` 的 `bzcheck`），缺失或不匹配会直接 `abort`：
 
 ```sh
-sha256sum -c sha256sums-6.18.44-Unraid.txt
-# 将 bzimage-6.18.44-Unraid 覆盖为 bzimage，bzroot-6.18.44-Unraid 覆盖为 bzroot
+cd /boot
+# 备份：回滚启动项指向的备份文件也需要各自的 .sha256
+cp -a bzimage bzimage-<旧版本>-stock && cp -a bzimage.sha256 bzimage-<旧版本>-stock.sha256
+cp -a bzroot  bzroot-<旧版本>-stock  && cp -a bzroot.sha256  bzroot-<旧版本>-stock.sha256
+# 替换
+cp /path/to/bzimage-<KERNEL> bzimage
+cp /path/to/bzroot-<KERNEL>  bzroot
+# 重新生成侧车校验文件（bzcheck 只比对前 64 位裸哈希）
+sha256sum bzimage | cut -c1-64 > bzimage.sha256
+sha256sum bzroot  | cut -c1-64 > bzroot.sha256
+# 核对下载文件本身
+sha256sum -c sha256sums-<KERNEL>.txt
 ```
+
+改用完整 USB zip 的话无需手工操作：包内已带重新生成好的 `.sha256`
+文件。救急开关：`touch /boot/config/skipbzcheck` 可跳过启动校验。
 
 **验证**：
 
