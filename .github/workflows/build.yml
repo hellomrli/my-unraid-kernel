@@ -217,9 +217,17 @@ jobs:
           scripts/all.sh 2>&1 | tee "$cloud_dir/logs/unraid-build.log"
           (
             cd out
-            for checksum in *.sha256; do
+            for checksum in unRAIDServer-*.sha256; do
               [ -f "$checksum" ] || continue
               sha256sum -c "$checksum"
+            done
+            # The boot-file sidecars are bare hashes for Unraid's rc.S
+            # bzcheck (not sha256sum -c format); verify them directly.
+            for name in bzimage bzroot; do
+              [ "$(head -c64 "$name.sha256")" = "$(sha256sum "$name" | cut -c1-64)" ] || {
+                printf 'Sidecar checksum mismatch: %s.sha256\n' "$name" >&2
+                exit 1
+              }
             done
             checksum_manifest="sha256sums-$KERNEL_RELEASE.txt"
             if [ -f "$checksum_manifest" ]; then
@@ -233,6 +241,10 @@ jobs:
             "out/$zip_base.sha256"
             "out/bzimage-$KERNEL_RELEASE"
             "out/bzroot-$KERNEL_RELEASE"
+            # Drop-in rc.S bzcheck sidecars (bare hashes, USB file names);
+            # users copy them next to bzimage/bzroot without recomputing.
+            "out/bzimage.sha256"
+            "out/bzroot.sha256"
             # out/bzmodules is intentionally not uploaded: it is byte-identical
             # to the file in the official Unraid package (verified by
             # 50-verify.sh), so users keep the one they already have. Its

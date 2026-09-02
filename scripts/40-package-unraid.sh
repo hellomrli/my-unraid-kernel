@@ -67,6 +67,12 @@ ln -sfn "/usr/src/linux-$KERNEL_RELEASE" "$BZR_WORK/lib/modules/$KERNEL_RELEASE/
 cat "$BZR_REPACK/early.cpio" "$BZR_REPACK/main.cpio.zst" > "$OUT_DIR/bzroot-$KERNEL_RELEASE"
 cp -f "$OUT_DIR/bzroot-$KERNEL_RELEASE" "$OUT_DIR/bzroot"
 
+# Unraid's rc.S bzcheck verifies each boot file against a bare-hash .sha256
+# sidecar; publish drop-in sidecars named exactly as they sit on the USB
+# stick so users can copy them without recomputing anything.
+sha256sum "$OUT_DIR/bzimage" | awk '{print $1}' > "$OUT_DIR/bzimage.sha256"
+sha256sum "$OUT_DIR/bzroot" | awk '{print $1}' > "$OUT_DIR/bzroot.sha256"
+
 # bzmodules is the /usr userspace image, not the kernel module tree. Preserve
 # it byte-for-byte; the module tree above belongs in bzroot.
 cp -f "$UNRAID_EXTRACT_DIR/bzmodules" "$OUT_DIR/bzmodules"

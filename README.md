@@ -34,14 +34,17 @@ cd /boot
 # 备份：回滚启动项指向的备份文件也需要各自的 .sha256
 cp -a bzimage bzimage-<旧版本>-stock && cp -a bzimage.sha256 bzimage-<旧版本>-stock.sha256
 cp -a bzroot  bzroot-<旧版本>-stock  && cp -a bzroot.sha256  bzroot-<旧版本>-stock.sha256
-# 替换
+# 替换；bzimage.sha256 / bzroot.sha256 从 Release 直接下载，
+# 文件名与 U 盘布局一致，原样放入即可
 cp /path/to/bzimage-<KERNEL> bzimage
 cp /path/to/bzroot-<KERNEL>  bzroot
-# 重新生成侧车校验文件（bzcheck 只比对前 64 位裸哈希）
-sha256sum bzimage | cut -c1-64 > bzimage.sha256
-sha256sum bzroot  | cut -c1-64 > bzroot.sha256
+cp /path/to/bzimage.sha256 bzimage.sha256
+cp /path/to/bzroot.sha256  bzroot.sha256
 # 核对下载文件本身
 sha256sum -c sha256sums-<KERNEL>.txt
+# 若 Release 未提供侧车文件，可手工生成（bzcheck 只比对前 64 位裸哈希）：
+# sha256sum bzimage | cut -c1-64 > bzimage.sha256
+# sha256sum bzroot  | cut -c1-64 > bzroot.sha256
 ```
 
 改用完整 USB zip 的话无需手工操作：包内已带重新生成好的 `.sha256`
