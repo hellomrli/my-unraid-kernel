@@ -23,9 +23,21 @@ if [ "$CLEAN_ZFS_BUILD" = "true" ] && [ -d "$ZFS_DIR" ]; then
   find "$ZFS_DIR" -depth -type d -empty -delete
 fi
 
-if [ ! -d "$ZFS_DIR" ]; then
+# The tarball may be a release archive (top dir zfs-<ver>/) or a git
+# snapshot (top dir zfs-<sha>/); strip the top-level component so both land
+# flat in $ZFS_DIR.
+if [ ! -d "$ZFS_DIR" ] || [ ! -f "$ZFS_DIR/configure.ac" ]; then
   log "Extracting OpenZFS $ZFS_VERSION"
-  tar -xf "$ZFS_TARBALL" -C "$BUILD_DIR"
+  rm -rf "$ZFS_DIR"
+  mkdir -p "$ZFS_DIR"
+  tar -xf "$ZFS_TARBALL" --strip-components=1 -C "$ZFS_DIR"
+fi
+
+# Release tarballs ship a generated configure; git snapshots do not and need
+# autogen.sh (autoconf/automake/libtool) to create one.
+if [ ! -x "$ZFS_DIR/configure" ]; then
+  log "Generating configure script with autogen.sh (git snapshot source)"
+  (cd "$ZFS_DIR" && ./autogen.sh) 2>&1 | tee "$LOG_DIR/autogen-zfs.log"
 fi
 
 [ -x "$ZFS_DIR/configure" ] || die "Missing executable configure script in $ZFS_DIR"
