@@ -1,0 +1,145 @@
+--- a/drivers/md/md_unraid.h
++++ b/drivers/md/md_unraid.h
+@@ -50,12 +50,10 @@
+ #include <linux/raid/xor.h>
+ 
+ /*
+- * Here are the raid6 p/q functions. Note: we patched lib/raid6/algos.c to ensure xor_syndrome() function
+- * is always available.
++ * raid6 p/q functions: declared as direct functions in
++ * <linux/raid/pq.h> since Linux 7.x (used to be function pointers).
+  */
+ #include <linux/raid/pq.h>
+-extern void (*raid6_gen_syndrome)(int, size_t, void **);
+-extern void (*raid6_xor_syndrome)(int, int, int, size_t, void **);
+ 
+ /*
+  * Different major versions are not compatible.
+--- a/drivers/md/md_unraid.c
++++ b/drivers/md/md_unraid.c
+@@ -464,7 +464,7 @@
+         rdev->erased = erased;
+ 
+ 	/* get id string */
+-	strncpy(rdev->id, id, MD_ID_SIZE-1);
++	strscpy(rdev->id, id, MD_ID_SIZE);
+ 
+ 	/* disk is present */
+ 	rdev->status = DISK_OK;
+@@ -2063,7 +2063,7 @@
+ 			return -1;
+ 
+ 		if ((token = get_token(&bufp, delim)) != NULL)
+-			strncpy(name, token, sizeof(name)-1);
++			strscpy(name, token, sizeof(name));
+ 
+ 		if ((token = get_token(&bufp, delim)) != NULL)
+ 			offset = simple_strtoul(token, &temp, 10);
+@@ -2075,7 +2075,7 @@
+ 			erased = simple_strtol(token, &temp, 10);
+ 
+ 		if ((token = get_token(&bufp, delim)) != NULL)
+-			strncpy(id, token, sizeof(id)-1);
++			strscpy(id, token, sizeof(id));
+ 		
+ 		result = import_slot(array_dev, slot, name, offset,size, erased, id);
+ 	}
+--- a/drivers/md/unraid.c
++++ b/drivers/md/unraid.c
+@@ -640,7 +640,7 @@
+ 		(unsigned long long)sh->sector);
+ 
+         check_srcs(sh, faila, failb);
+-        raid6_2data_recov(disks, BUFFER_SIZE, faila, failb, sh->srcs);
++        raid6_recov_2data(disks, BUFFER_SIZE, faila, failb, sh->srcs);
+         set_buff_uptodate(&sh->col[faila]);
+         set_buff_locked(&sh->col[faila]);
+         set_buff_uptodate(&sh->col[failb]);
+@@ -661,7 +661,7 @@
+                 memcpy(sh->srcs[pd_idx], sh->srcs[qd_idx], BUFFER_SIZE);
+         }
+         else {
+-                raid6_datap_recov(disks, BUFFER_SIZE, faila, sh->srcs);
++                raid6_recov_datap(disks, BUFFER_SIZE, faila, sh->srcs);
+         }
+         set_buff_uptodate(&sh->col[faila]);
+         set_buff_locked(&sh->col[faila]);
+@@ -713,9 +713,13 @@
+         set_buff_locked(&sh->col[qd_idx]);
+ }
+ 
++/* xor_blocks() was replaced by xor_gen() in Linux 7.x; the new call takes
++ * (dest, srcs, count, bytes) but keeps the accumulate-into-dest semantics. */
++#define XOR_CHUNK 4
++
+ #define check_xor()   do { 						\
+-                         if (count == MAX_XOR_BLOCKS) {		        \
+-                            xor_blocks(count, BUFFER_SIZE, dest, ptr);	\
++                         if (count == XOR_CHUNK) {			\
++                            xor_gen(dest, ptr, count, BUFFER_SIZE);	\
+                             count = 0;				        \
+                          }						\
+                       } while(0)
+@@ -723,7 +727,7 @@
+ static void raid5_generate_d(struct stripe_head *sh, int dd_idx)
+ {
+ 	int disks=sh->conf->disks, pd_idx=disks-2, count, i;
+-	void *dest, *ptr[MAX_XOR_BLOCKS];
++	void *dest, *ptr[XOR_CHUNK];
+ 
+ 	dprintk("raid5_generate_d, stripe %llu, idx %d\n", 
+ 		(unsigned long long)sh->sector, dd_idx);
+@@ -749,7 +753,7 @@
+ 		check_xor();
+ 	}
+ 	if (count)
+-		xor_blocks(count, BUFFER_SIZE, dest, ptr);
++		xor_gen(dest, ptr, count, BUFFER_SIZE);
+ 
+ 	set_buff_uptodate(&sh->col[dd_idx]);
+         set_buff_locked(&sh->col[dd_idx]);
+@@ -787,7 +791,7 @@
+ static void rmw5_write_data(struct stripe_head *sh)
+ {
+ 	int disks=sh->conf->disks, pd_idx=disks-2, count, i;
+-	void *dest, *ptr[MAX_XOR_BLOCKS];
++	void *dest, *ptr[XOR_CHUNK];
+ 
+ 	dprintk("rmw5_write_data, stripe %llu\n",
+ 		(unsigned long long)sh->sector);
+@@ -808,7 +812,7 @@
+                 }
+         }
+         if (count) {
+-                xor_blocks(count, BUFFER_SIZE, dest, ptr);
++                xor_gen(dest, ptr, count, BUFFER_SIZE);
+                 count = 0;
+         }
+ 
+@@ -830,7 +834,7 @@
+                 }
+         }
+         if (count) {
+-                xor_blocks(count, BUFFER_SIZE, dest, ptr);
++                xor_gen(dest, ptr, count, BUFFER_SIZE);
+                 count = 0;
+         }
+ 
+@@ -887,7 +891,7 @@
+ static int check_parity5(struct stripe_head *sh)
+ {
+ 	int disks=sh->conf->disks, pd_idx=disks-2, count, i;
+-	void *dest, *ptr[MAX_XOR_BLOCKS];
++	void *dest, *ptr[XOR_CHUNK];
+ 
+ 	dprintk("check_parity5, stripe %llu\n", (unsigned long long)sh->sector);
+ 
+@@ -908,7 +912,7 @@
+ 		check_xor();
+ 	}
+ 	if (count) {
+-		xor_blocks(count, BUFFER_SIZE, dest, ptr);
++		xor_gen(dest, ptr, count, BUFFER_SIZE);
+ 		count = 0;
+ 	}
+ 
