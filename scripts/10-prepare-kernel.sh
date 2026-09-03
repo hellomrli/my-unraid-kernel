@@ -95,13 +95,13 @@ install -m 0644 \
 # The seed driver sources target the 6.18 Unraid tree; port them to the 7.x
 # kernel APIs (raid6 direct functions instead of pointers, xor_blocks ->
 # xor_gen, strscpy instead of the removed strncpy).
-PORT_PATCH="$ROOT_DIR/patches/unraid-md-driver-linux-7.2.3-port.patch"
-[ -s "$PORT_PATCH" ] || die "Missing Unraid md driver port patch: $PORT_PATCH"
+PORT_PATCH="$ROOT_DIR/patches/unraid-driver-linux-7.2.3-port.patch"
+[ -s "$PORT_PATCH" ] || die "Missing Unraid driver port patch: $PORT_PATCH"
 if git -C "$KERNEL_DIR" apply --check "$PORT_PATCH" >/dev/null 2>&1; then
   git -C "$KERNEL_DIR" apply "$PORT_PATCH"
-  log "Applied Unraid md driver port patch"
+  log "Applied Unraid driver port patch"
 elif git -C "$KERNEL_DIR" apply --reverse --check "$PORT_PATCH" >/dev/null 2>&1; then
-  log "Unraid md driver port patch already applied"
+  log "Unraid driver port patch already applied"
 else
   die "Cannot apply $PORT_PATCH"
 fi
