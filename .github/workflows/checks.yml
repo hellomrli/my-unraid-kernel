@@ -1,0 +1,38 @@
+name: Check build scripts
+
+on:
+  push:
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-script-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+
+      - name: Install archive tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cpio zstd
+
+      - name: Check shell syntax
+        run: |
+          for script in scripts/*.sh; do
+            bash -n "$script"
+          done
+
+      - name: Test archive and artifact verification
+        run: python3 -m unittest discover -s scripts/tests -v

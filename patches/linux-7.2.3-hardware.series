@@ -1,0 +1,6 @@
+acs-override-linux-7.2.3.patch
+nvme-quirks-linux-7.2.3.patch
+mvsas-rr2782-linux-7.2.3.patch
+mozart-395s-linux-7.2.3.patch
+thunderbolt-host-reset-linux-7.2.3.patch
+drm-edid-linux-7.2.3.patch

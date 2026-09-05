@@ -1,0 +1,35 @@
+From: Morgan Jones <me@numin.it>
+Subject: [PATCH] PCI: avoid bus reset on Mozart 395S capture cards
+
+Forward-port mozart_395S.patch from Unraid 7.4.0-beta.2
+(src/linux-6.18.47-Unraid) to Linux 7.2.3.
+
+--- a/drivers/pci/quirks.c
++++ b/drivers/pci/quirks.c
+@@ -3787,6 +3787,13 @@
+  * accesses to the child may fail.
+  */
+ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_CAVIUM, 0xa100, quirk_no_bus_reset);
++
++/*
++ * Yuan Yuan Enterprises PCI capture cards based on the Mozart 395S
++ * completely break on bus reset.
++ */
++DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_YYE, PCI_DEVICE_ID_YYE_MOZART_395S,
++			 quirk_no_bus_reset);
+ 
+ /*
+  * Some TI KeyStone C667X devices do not support bus/hot reset.  The PCIESS
+--- a/include/linux/pci_ids.h
++++ b/include/linux/pci_ids.h
+@@ -1808,6 +1808,10 @@
+ 
+ /* formerly Platform Tech */
+ #define PCI_DEVICE_ID_ESS_ESS0100	0x0100
++
++/* Yuan Yuan Enterprise Co. Ltd (e.g. Elgato HD60 Pro capture cards) */
++#define PCI_VENDOR_ID_YYE		0x12ab
++#define PCI_DEVICE_ID_YYE_MOZART_395S	0x0380	/* Elgato HD60 Pro */
+ 
+ #define PCI_VENDOR_ID_ALTEON		0x12ae
+ 

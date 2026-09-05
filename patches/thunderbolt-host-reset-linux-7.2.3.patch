@@ -1,0 +1,20 @@
+Subject: [PATCH] thunderbolt: default host_reset to false for Unraid
+
+Forward-port drivers_thunderbolt_host_reset.patch from Unraid 7.4.0-beta.2
+(src/linux-6.18.47-Unraid) to Linux 7.2.3.
+
+--- a/drivers/thunderbolt/nhi.c
++++ b/drivers/thunderbolt/nhi.c
+@@ -36,9 +36,10 @@
+ 
+ #define NHI_MAILBOX_TIMEOUT	500 /* ms */
+ 
+-static bool host_reset = true;
++/* Match the Unraid default; thunderbolt.host_reset=true opts back in. */
++static bool host_reset = false;
+ module_param(host_reset, bool, 0444);
+-MODULE_PARM_DESC(host_reset, "reset USB4 host router (default: true)");
++MODULE_PARM_DESC(host_reset, "reset USB4 host router (default: false)");
+ 
+ static int ring_interrupt_index(const struct tb_ring *ring)
+ {

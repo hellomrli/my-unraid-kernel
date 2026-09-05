@@ -1,0 +1,2 @@
+# Unified-diff context markers precede source tabs and blank lines.
+patches/*.patch -whitespace

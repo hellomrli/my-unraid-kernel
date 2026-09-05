@@ -15,62 +15,45 @@ minimal splitting logic with stdlib only, feeding each member to GNU cpio.
 Usage: unpack-bzroot.py INITRAMFS-FILE DIRECTORY
 """
 
-import os
 import subprocess
 import sys
+from pathlib import Path
 
-ZSTD_MAGIC = b"\x28\xb5\x2f\xfd"
-CPIO_END = b"TRAILER!!!"
+from bzroot import ZSTD_MAGIC, cpio_records, read_main, split_bzroot
+
 GZIP_MAGIC = b"\x1f\x8b"
 
 
-def extract(payload, decompressor, dst):
-    """Run decompressor on payload and extract the resulting cpio into dst."""
-    dec = subprocess.Popen(
-        decompressor, stdin=subprocess.PIPE, stdout=subprocess.PIPE
-    )
-    out, _ = dec.communicate(payload)
-    if dec.returncode != 0:
-        sys.exit(
-            "unpack-bzroot: decompressor failed: %s" % " ".join(decompressor)
-        )
-    cpio = subprocess.run(
-        ["cpio", "--quiet", "-idm", "--no-absolute-filenames"],
-        input=out,
-        cwd=dst,
-    )
-    if cpio.returncode != 0:
-        sys.exit("unpack-bzroot: cpio extraction failed (exit %d)" % cpio.returncode)
+def archives(data):
+    """Validate every member before extracting anything to the filesystem."""
+    if data.startswith(GZIP_MAGIC):
+        main = subprocess.run(["gzip", "-dc"], input=data,
+                              stdout=subprocess.PIPE, check=True).stdout
+        read_main(main)
+        return (main,)
+    if data.startswith(ZSTD_MAGIC):
+        raise ValueError("whole-file zstd initramfs is not supported; "
+                         "expected an uncompressed early cpio followed by a zstd member")
+    _, _, end = cpio_records(data)
+    if not any(data[end:]):
+        return (data,)
+    early, main = split_bzroot(data)
+    read_main(main)
+    return early, main
 
 
 def main():
     if len(sys.argv) != 3:
         sys.exit("usage: unpack-bzroot.py INITRAMFS-FILE DIRECTORY")
-    src, dst = sys.argv[1], sys.argv[2]
-    data = open(src, "rb").read()
-    os.makedirs(dst, exist_ok=True)
-
-    # The zstd member follows the uncompressed early cpio; only search past
-    # the first end-of-archive marker so file contents cannot confuse us.
-    trailer = data.find(CPIO_END)
-    search_from = trailer + len(CPIO_END) if trailer >= 0 else 0
-    zpos = data.find(ZSTD_MAGIC, search_from)
-
-    if zpos > 0:
-        early, main = data[:zpos], data[zpos:]
-        extract(early, ["cat"], dst)
-        extract(main, ["zstd", "-dc", "-q"], dst)
-    elif data[:4] == ZSTD_MAGIC:
-        sys.exit(
-            "unpack-bzroot: whole-file zstd initramfs is not supported; "
-            "expected an uncompressed early cpio followed by a zstd member"
-        )
-    elif data[:2] == GZIP_MAGIC:
-        # Legacy/unexpected whole-file gzip archive.
-        extract(data, ["gzip", "-dc"], dst)
-    else:
-        # Whole file is a single (uncompressed) cpio archive.
-        extract(data, ["cat"], dst)
+    src, dst = map(Path, sys.argv[1:])
+    try:
+        members = archives(src.read_bytes())
+        dst.mkdir(parents=True, exist_ok=True)
+        for payload in members:
+            subprocess.run(["cpio", "--quiet", "-idm", "--no-absolute-filenames",
+                            "--no-preserve-owner"], input=payload, cwd=dst, check=True)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        sys.exit(f"unpack-bzroot: {error}")
 
 
 if __name__ == "__main__":
