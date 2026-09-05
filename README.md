@@ -14,6 +14,10 @@ OpenZFS 2.4.4 / GCC 15.3.0**。内核来自 kernel.org，配置和阵列驱动�
 `6.18.47-Unraid` 为种子；构建方法、验证结果及移植范围见
 [beta.2 测试记录](docs/test-linux-7.2.3-unraid-7.4.0-beta.2.md)。
 
+该组合已通过 [GitHub Actions 云编译](https://github.com/hellomrli/my-unraid-kernel/actions/runs/33977957223)，
+可[下载预发行版 v7.4.0-beta.2-7.2.3-Unraid](https://github.com/hellomrli/my-unraid-kernel/releases/tag/v7.4.0-beta.2-7.2.3-Unraid)。
+Release 附带完整 USB ZIP、引导文件、校验清单及两份静态验证报告。
+
 ## 最新发布
 
 常规分支的已发布组合见 [GitHub Releases](https://github.com/hellomrli/my-unraid-kernel/releases)。
