@@ -1,0 +1,20 @@
+Subject: [PATCH] drm: reduce Unraid EDID log noise
+
+Forward-port drivers_drm_edid.patch from Unraid 7.4.0-beta.2
+(src/linux-6.18.47-Unraid) to Linux 7.2.3.
+
+--- a/drivers/gpu/drm/drm_edid.c
++++ b/drivers/gpu/drm/drm_edid.c
+@@ -1953,10 +1953,10 @@
+ 		pr_debug("EDID block %d pointer is NULL\n", block_num);
+ 		break;
+ 	case EDID_BLOCK_ZERO:
+-		pr_notice("EDID block %d is all zeroes\n", block_num);
++		pr_debug("EDID block %d is all zeroes\n", block_num);
+ 		break;
+ 	case EDID_BLOCK_HEADER_CORRUPT:
+-		pr_notice("EDID has corrupt header\n");
++		pr_debug("EDID has corrupt header\n");
+ 		break;
+ 	case EDID_BLOCK_HEADER_REPAIR:
+ 		pr_debug("EDID corrupt header needs repair\n");

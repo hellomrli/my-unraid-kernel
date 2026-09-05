@@ -156,6 +156,9 @@ jobs:
           g++ --version
           df -h .
 
+      - name: Test archive and artifact verification
+        run: python3 -m unittest discover -s scripts/tests -v
+
       - name: Select a container-safe build configuration
         shell: bash
         run: |
@@ -222,25 +225,6 @@ jobs:
           cloud_dir=cloud-artifacts
           mkdir -p "$cloud_dir/logs"
           scripts/all.sh 2>&1 | tee "$cloud_dir/logs/unraid-build.log"
-          (
-            cd out
-            for checksum in unRAIDServer-*.sha256; do
-              [ -f "$checksum" ] || continue
-              sha256sum -c "$checksum"
-            done
-            # The boot-file sidecars are bare hashes for Unraid's rc.S
-            # bzcheck (not sha256sum -c format); verify them directly.
-            for name in bzimage bzroot; do
-              [ "$(head -c64 "$name.sha256")" = "$(sha256sum "$name" | cut -c1-64)" ] || {
-                printf 'Sidecar checksum mismatch: %s.sha256\n' "$name" >&2
-                exit 1
-              }
-            done
-            checksum_manifest="sha256sums-$KERNEL_RELEASE.txt"
-            if [ -f "$checksum_manifest" ]; then
-              sha256sum -c "$checksum_manifest"
-            fi
-          )
 
           zip_base="unRAIDServer-${UNRAID_VERSION}-Linux-${TARGET_KERNEL_VERSION}-x86_64.zip"
           artifacts=(
@@ -258,6 +242,7 @@ jobs:
             # checksum still ships in sha256sums-*.txt for cross-checking.
             "out/sha256sums-$KERNEL_RELEASE.txt"
             "out/verification-$KERNEL_RELEASE.txt"
+            "out/verification-extended-$KERNEL_RELEASE.txt"
           )
           # Optional reference files, produced only by the rebuild modes.
           for optional_artifact in \
@@ -308,12 +293,36 @@ jobs:
             printf 'No release assets were produced\n' >&2
             exit 1
           }
+          release_flags=()
+          if [ "$BUILD_TARGET" = "full-linux-7.2.3" ]; then
+            release_flags+=(--prerelease --latest=false)
+          fi
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          {
+            printf '官方 Unraid %s 为基座，重编译 Linux %s 和匹配的内核模块。\n\n' \
+              "$UNRAID_VERSION" "$KERNEL_RELEASE"
+            printf '源码与配置：[构建提交 %s](%s/%s/tree/%s)。\n\n' \
+              "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_SHA"
+            printf '云端构建：[GitHub Actions](%s/%s/actions/runs/%s)。\n\n' \
+              "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            cat <<'EOF'
+          全部模块、官方保留文件、引导文件及 SHA256 校验已通过静态验证；最终产物的哈希和检查结果见附件中的校验清单及 verification 报告。
+
+          优先使用完整 USB ZIP。单独替换引导文件时，先确认已使用对应版本的官方 Unraid 基座，再成对替换 bzimage、bzroot 和两个配套 .sha256 文件。
+
+          i915 SR-IOV 驱动由独立项目提供。本次为编译与静态验证，实机启动、阵列和硬件测试仍待进行；请保留恢复启动项。
+          EOF
+          } > "$notes_file"
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
+              --target "$GITHUB_SHA" --draft \
               --title "Unraid ${UNRAID_VERSION} / kernel ${KERNEL_RELEASE}" \
-              --notes "Official Unraid ${UNRAID_VERSION} package with the ${KERNEL_RELEASE} kernel from ich777/unraid_kernel swapped in." >/dev/null
+              --notes-file "$notes_file" "${release_flags[@]}" >/dev/null
           fi
           gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
+          if [ "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = "true" ]; then
+            gh release edit "$RELEASE_TAG" --draft=false "${release_flags[@]}"
+          fi
 
       - name: Update upstream state
         if: ${{ success() && inputs.target == 'auto-latest' }}

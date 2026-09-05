@@ -47,24 +47,20 @@ install -m 0644 "$KERNEL_DIR/arch/x86/boot/bzImage" "$OUT_DIR/bzimage-$KERNEL_RE
 install -m 0644 "$KERNEL_DIR/arch/x86/boot/bzImage" "$OUT_DIR/bzimage"
 
 log "Repacking bzroot with rebuilt $KERNEL_RELEASE modules"
-python3 "$SCRIPT_DIR/unpack-bzroot.py" "$UNRAID_EXTRACT_DIR/bzroot" "$BZR_WORK"
-
-# Replace the official module tree with the fully rebuilt one (in-tree modules
-# plus OpenZFS), then link build/source as Unraid's tooling expects.
-find "$BZR_WORK/lib/modules" -mindepth 1 -depth -type f -delete
-find "$BZR_WORK/lib/modules" -mindepth 1 -depth -type l -delete
-find "$BZR_WORK/lib/modules" -mindepth 1 -depth -type d -empty -delete
+# Stage only new modules; stock initramfs records are preserved directly in
+# the archive, so non-root builds retain all official uid/gid and mode bits.
+mkdir -p "$BZR_WORK/lib/modules"
 cp -a "$MODULE_DIR" "$BZR_WORK/lib/modules/$KERNEL_RELEASE"
 ln -sfn "/usr/src/linux-$KERNEL_RELEASE" "$BZR_WORK/lib/modules/$KERNEL_RELEASE/build"
 ln -sfn "/usr/src/linux-$KERNEL_RELEASE" "$BZR_WORK/lib/modules/$KERNEL_RELEASE/source"
 
 (
   cd "$BZR_WORK"
-  find ./kernel -print | LC_ALL=C sort | cpio --quiet -o -H newc --owner=0:0 > "$BZR_REPACK/early.cpio"
-  find . -path './kernel' -prune -o -print | LC_ALL=C sort | cpio --quiet -o -H newc --owner=0:0 | zstd -19 -T0 -q -c > "$BZR_REPACK/main.cpio.zst"
+  find ./lib/modules -print0 | LC_ALL=C sort -z | cpio --null --quiet -o -H newc --owner=0:0 > "$BZR_REPACK/modules.cpio"
 )
 
-cat "$BZR_REPACK/early.cpio" "$BZR_REPACK/main.cpio.zst" > "$OUT_DIR/bzroot-$KERNEL_RELEASE"
+python3 "$SCRIPT_DIR/repack-bzroot.py" "$UNRAID_EXTRACT_DIR/bzroot" \
+  "$BZR_REPACK/modules.cpio" "$OUT_DIR/bzroot-$KERNEL_RELEASE"
 cp -f "$OUT_DIR/bzroot-$KERNEL_RELEASE" "$OUT_DIR/bzroot"
 
 # Unraid's rc.S bzcheck verifies each boot file against a bare-hash .sha256
