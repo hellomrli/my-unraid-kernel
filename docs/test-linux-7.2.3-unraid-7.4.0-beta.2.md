@@ -143,7 +143,7 @@ BUILD_ENV_FILE=config/build-linux-7.2.3.env scripts/all.sh
 本机的构建日志、源码和模块暂存树保留在 `build/test-beta2/`；扩展验证的正式
 入口为 `scripts/50-verify.sh`，后续复验日志为
 `logs/verify-beta2-continuation.log`。
-本次未发布 Release。
+公开 Release 使用下节记录的 GitHub Actions 云编译产物。
 
 以上哈希来自包含整组硬件补丁的干净目录全量重建；`bzmodules` 仍为官方文件，
 校验值为 `5d7f28bbf9882457abc258ea38c77dddd97f0a193940eb8c5f843e10be9fdf21`。
@@ -154,6 +154,26 @@ BUILD_ENV_FILE=config/build-linux-7.2.3.env scripts/all.sh
 测试 USB 应先使用本次完整 beta.2 ZIP 的基座；仅替换引导文件时，需要先
 确认 USB 已升级到官方 beta.2，再成对复制 `bzimage`、`bzroot` 和两个
 配套 SHA256 文件，避免与 beta.1 用户空间混用。
+
+## 云端构建与发布
+
+北京时间 2026-09-06 01:22，已从 `linux-7.2.3` 分支的提交
+[`6cb9449`](https://github.com/hellomrli/my-unraid-kernel/commit/6cb9449574b29804235d6b8d3036a71678e89841)
+完成 [GitHub Actions 构建](https://github.com/hellomrli/my-unraid-kernel/actions/runs/33977957223)，
+并公开[预发行版 v7.4.0-beta.2-7.2.3-Unraid](https://github.com/hellomrli/my-unraid-kernel/releases/tag/v7.4.0-beta.2-7.2.3-Unraid)。
+Release 标签指向该构建提交，全部 11 个附件上传完成后才公开。
+
+云端使用 GCC 15.3.0，25 项回归测试通过；1293 个模块的全量静态验证通过，
+45 个官方 ZIP 保留条目、2692 条非模块 CPIO 记录和早期归档一致性检查通过。
+发布后另行下载校验清单与报告，确认 GitHub 的附件 SHA256 与云端记录一致。
+完整检查结果见 Release 的
+[扩展报告](https://github.com/hellomrli/my-unraid-kernel/releases/download/v7.4.0-beta.2-7.2.3-Unraid/verification-extended-7.2.3-Unraid.txt)。
+
+| 云端发布文件 | SHA256 |
+| --- | --- |
+| `unRAIDServer-7.4.0-beta.2-Linux-7.2.3-x86_64.zip` | `89936d7ed8e4b0482ff5e5436cfc551c1adee7dd0d112c0b298de3eb4810cfcf` |
+| `bzimage-7.2.3-Unraid` | `38596254ae1fb43ca8ebccdda5b8c11f87fa59a0607544756772e11902008ea6` |
+| `bzroot-7.2.3-Unraid` | `5f9ead7d31d58454549a9d5dd960647d0e2c8bf142dc260573be3d2e03bce8f3` |
 
 ## 尚待处理和测试的范围
 
