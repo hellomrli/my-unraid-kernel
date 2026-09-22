@@ -31,3 +31,6 @@ __pycache__/
 *.mod.c
 Module.symvers
 modules.order
+
+# 构建输出目录（2026-09-22 已从历史中清除误提交的 bzimage 与构建日志）
+/out/
